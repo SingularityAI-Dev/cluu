@@ -170,17 +170,94 @@ Explicitly excluded. Documented to prevent scope creep.
 
 ## Traceability
 
-Which phases cover which requirements. Populated during roadmap creation.
+All 71 v1 requirements mapped to exactly one phase. Populated by roadmapper 2026-04-20.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| *(to be populated by roadmapper)* | — | Pending |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Pending |
+| AUTH-05 | Phase 1 | Pending |
+| AUTH-06 | Phase 4 | Pending |
+| WORLD-01 | Phase 1 | Pending |
+| WORLD-02 | Phase 1 | Pending |
+| WORLD-03 | Phase 1 | Pending |
+| WORLD-04 | Phase 1 | Pending |
+| WORLD-05 | Phase 4 | Pending |
+| WORLD-06 | Phase 3 | Pending |
+| WORLD-07 | Phase 3 | Pending |
+| CLUU-01 | Phase 1 | Pending |
+| CLUU-02 | Phase 3 | Pending |
+| CLUU-03 | Phase 3 | Pending |
+| CLUU-04 | Phase 3 | Pending |
+| CLUU-05 | Phase 3 | Pending |
+| CLUU-06 | Phase 3 | Pending |
+| CLUU-07 | Phase 3 | Pending |
+| CLUU-08 | Phase 3 | Pending |
+| ENC-01 | Phase 2 | Pending |
+| ENC-02 | Phase 2 | Pending |
+| ENC-03 | Phase 2 | Pending |
+| ENC-04 | Phase 2 | Pending |
+| ENC-05 | Phase 2 | Pending |
+| ENC-06 | Phase 2 | Pending |
+| ENC-07 | Phase 2 | Pending |
+| ENC-08 | Phase 2 | Pending |
+| ENC-09 | Phase 2 | Pending |
+| ENC-10 | Phase 2 | Pending |
+| CONT-01 | Phase 3 | Pending |
+| CONT-02 | Phase 4 | Pending |
+| CONT-03 | Phase 4 | Pending |
+| CONT-04 | Phase 4 | Pending (scope-flex) |
+| CONT-05 | Phase 4 | Pending |
+| CONT-06 | Phase 3 | Pending |
+| LIB-01 | Phase 3 | Pending |
+| LIB-02 | Phase 3 | Pending |
+| LIB-03 | Phase 3 | Pending |
+| LIB-04 | Phase 3 | Pending |
+| LIB-05 | Phase 4 | Pending |
+| LIB-06 | Phase 4 | Pending |
+| LIB-07 | Phase 4 | Pending |
+| COS-01 | Phase 3 | Pending |
+| COS-02 | Phase 3 | Pending |
+| COS-03 | Phase 3 | Pending |
+| ENG-01 | Phase 2 | Pending |
+| ENG-02 | Phase 2 | Pending |
+| ENG-03 | Phase 2 | Pending |
+| ENG-04 | Phase 2 | Pending |
+| ENG-05 | Phase 2 | Pending |
+| ENG-06 | Phase 5 | Pending |
+| PERS-01 | Phase 3 | Pending |
+| PERS-02 | Phase 1 | Pending |
+| PERS-03 | Phase 3 | Pending |
+| PERS-04 | Phase 3 | Pending |
+| OPS-01 | Phase 3 | Pending |
+| OPS-02 | Phase 2 | Pending |
+| OPS-03 | Phase 4 | Pending |
+| OPS-04 | Phase 1 | Pending |
+| PERF-01 | Phase 5 | Pending |
+| PERF-02 | Phase 5 | Pending |
+| PERF-03 | Phase 5 | Pending |
+| PERF-04 | Phase 5 | Pending |
+| ONB-01 | Phase 5 | Pending |
+| ONB-02 | Phase 5 | Pending |
+| A11Y-01 | Phase 3 | Pending |
+| A11Y-02 | Phase 3 | Pending |
+| A11Y-03 | Phase 3 | Pending |
+| A11Y-04 | Phase 3 | Pending |
 
 **Coverage:**
-- v1 requirements: 59 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 59 ⚠️
+- v1 requirements: 71 total *(prior header of "59" was incorrect — enumerated count is 71)*
+- Mapped to phases: 71 ✓
+- Unmapped: 0 ✓
+
+**Per-phase counts:**
+- Phase 1 (Scaffold): 12 requirements
+- Phase 2 (Walking Skeleton): 16 requirements
+- Phase 3 (Meadow + Persistence + Library MD): 26 requirements
+- Phase 4 (Remaining Biomes + Share Cards): 10 requirements
+- Phase 5 (Launch Hardening): 7 requirements
 
 ---
 *Requirements defined: 2026-04-20*
-*Last updated: 2026-04-20 after initialization*
+*Last updated: 2026-04-20 — traceability populated by roadmapper, all 71 v1 requirements mapped to exactly one phase*
