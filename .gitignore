@@ -1,2 +1,36 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# next.js
+.next/
+out/
+
+# vercel
+.vercel/
+
+# testing
+coverage/
+
+# env files (never commit real values)
+.env
 .env.local
+.env.production.local
+.env.development.local
+.env.test.local
+
+# OS
 .DS_Store
+
+# editor
+.vscode/
+.idea/
+
+# phaser / assets build output
+build/
+
+# typescript
+*.tsbuildinfo
+
+# vitest
+.vitest-cache/

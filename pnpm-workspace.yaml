@@ -1,0 +1,4 @@
+packages:
+  - '.'
+  # Phase 2 will add:
+  # - packages/logic-md-core
