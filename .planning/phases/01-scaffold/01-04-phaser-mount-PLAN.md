@@ -81,7 +81,7 @@ Creates the game/ directory scaffolding per ARCHITECTURE.md: `game/index.ts` as 
 - **MeadowScene** — gameplay; Phase 1 shows grass. Plan 05 adds the anchor + Cluu.
 - **UIScene** — Phaser HUD layer running parallel (not the React overlay — that's a different concern)
 
-`app/play/page.tsx` is a Server Component that reads the user session (passing through the middleware from Plan 02) and hands `initialState` to `GameClient` via props. `GameClient.tsx` is `'use client'` and loaded via `next/dynamic` with `ssr: false` — the ONLY file that imports from `game/`.
+`app/play/page.tsx` is a Server Component that reads the user session (passing through the proxy from Plan 02) and hands `initialState` to `GameClient` via props. `GameClient.tsx` is `'use client'` and loaded via `next/dynamic` with `ssr: false` — the ONLY file that imports from `game/`.
 
 This plan does NOT add the anchor or Cluu (Plan 05). It does NOT wire Zustand to Phaser beyond initial prop hand-off (Plan 05 closes that loop via EventBus).
 

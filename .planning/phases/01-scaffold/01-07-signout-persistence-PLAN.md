@@ -26,7 +26,7 @@ must_haves:
     - "On first visit (no Supabase session), the app calls `supabase.auth.signInAnonymously()` to create an anonymous session (AUTH-01 + STACK.md §2)"
     - "When auth state flips from anonymous → authed (user clicked magic-link), the client POSTs localStorage state to `/api/migrate-anonymous` from Plan 03 (AUTH-03 client-side wiring)"
     - "Migration is triggered only once per upgrade — tracked by the `migrationIdempotencyKey` in the Zustand store (Plan 03)"
-    - "After refresh, an authenticated user remains signed in (middleware from Plan 02 keeps session fresh — this plan verifies the path end-to-end)"
+    - "After refresh, an authenticated user remains signed in (proxy.ts from Plan 02 keeps session fresh — this plan verifies the path end-to-end)"
     - "A unit test proves the migration hook does NOT fire when user is already authed or when localStorage was never populated"
   artifacts:
     - path: "ui/SettingsMenu.tsx"
@@ -65,7 +65,7 @@ Close two open success-criteria gaps from Plans 02-06:
 
 Also: on first visit, create the anonymous session (STACK.md "Integration gotchas §2" — `supabase.auth.signInAnonymously()`). This closes AUTH-01 by giving every visitor a real `auth.users` row from page-load-one, with RLS keyed to `auth.uid()` working uniformly whether anonymous or authed.
 
-Success Criterion #4 ("Signed-in user can refresh the browser and remain logged in") is proven end-to-end here: Plan 02's middleware keeps the cookie fresh; this plan's shell confirms the user remains authed after reload.
+Success Criterion #4 ("Signed-in user can refresh the browser and remain logged in") is proven end-to-end here: Plan 02's `proxy.ts` keeps the cookie fresh; this plan's shell confirms the user remains authed after reload.
 
 Purpose: AUTH-01, AUTH-04, AUTH-05 pass. AUTH-03 closes end-to-end (Plan 03 was the server half; Plan 07 is the client trigger).
 Output: Sign-out button visible everywhere; first-visit creates anon session; magic-link upgrade triggers migration exactly once.
@@ -679,14 +679,14 @@ export default function HomePage() {
 2. `pnpm build` succeeds
 3. Manual: visit `/play` in incognito — no Supabase session beforehand, Network tab shows `signInAnonymously` firing, `auth.users` row exists server-side
 4. Manual: click Sign out from the settings menu → session cleared → redirect to `/`
-5. Manual (critical AUTH-04 proof): sign in via magic link, land on `/play`, REFRESH browser, observe still-signed-in (middleware keeps cookie fresh)
+5. Manual (critical AUTH-04 proof): sign in via magic link, land on `/play`, REFRESH browser, observe still-signed-in (`proxy.ts` keeps cookie fresh)
 6. Manual (AUTH-03 proof): play as anon, accumulate some state in Zustand, click "Save your island" → magic link → callback → client POSTs to `/api/migrate-anonymous` (verify in Network tab). Second click of the same magic link (common — email previewers) does not cause data duplication.
 </verification>
 
 <success_criteria>
 - AUTH-01: anonymous play works from first visit (Supabase anon user created on first load)
 - AUTH-03: client triggers migration exactly once on anon→authed transition
-- AUTH-04: session persists across browser refresh (middleware from Plan 02 + this plan's sanity check)
+- AUTH-04: session persists across browser refresh (`proxy.ts` from Plan 02 + this plan's sanity check)
 - AUTH-05: sign-out reachable from every screen via top-right menu (D-06)
 - D-04: `updateUser({ email })` → no row migration; client migration is only for localStorage drift
 - D-06: persistent settings affordance shipped

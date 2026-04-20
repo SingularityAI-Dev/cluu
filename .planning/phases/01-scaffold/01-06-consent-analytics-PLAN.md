@@ -96,7 +96,7 @@ Absorb **Pitfall 12 (BLOCKER)**: POPIA-compliant analytics gating. PostHog must 
 
 Key decisions absorbed:
 - **D-20**: cookie-consent banner in `app/layout.tsx`; banner copy neutral ("We use PostHog to understand gameplay. Accept or decline — no dark patterns."); PostHog only loads post-opt-in
-- **D-21**: Sentry wired into `app/global-error.tsx` + middleware (Plan 02 middleware already exists; this plan adds Sentry instrumentation via the Next.js hook)
+- **D-21**: Sentry wired into `app/global-error.tsx` + proxy (Plan 02 `proxy.ts` already exists; this plan adds Sentry instrumentation via the Next.js hook)
 - **D-22**: Node.js runtime (instrumentation.ts already respects runtime conditionals)
 
 Banner behavior (from Pitfall 12 + CONTEXT.md): both buttons visually equal (same padding, color scheme, font weight); banner sits at the bottom of the viewport; dismisses once decision is made; banner never re-appears if decided (can be re-opened from Settings in a future phase).

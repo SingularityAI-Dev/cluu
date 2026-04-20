@@ -51,6 +51,8 @@ Output: `MANUAL-SMOKE.md` in the phase directory, with every browser row either 
 **Phase dependencies:** This plan runs LAST in Wave 3, after every other Phase 1 plan ships. The deploy must be live on a preview URL (or `cluu.game`) before the smoke can run — the test is against real, deployed HTTPS magic-link emails.
 
 **Why it's a full plan and not a task in another plan:** The human-gated nature means the executor's job is bounded: create the checklist template, verify the deploy is reachable, then stop. The human then fills in the checklist and pushes the result. Mixing autonomous work with a manual gate in the same plan produces confusion about who owns the commit.
+
+**Task shape note:** This plan uses `<task id="N">` structure (not `<task type="auto">` / `<task type="checkpoint:user">`) intentionally. It's an `autonomous: false` manual-smoke plan — the standard auto/checkpoint task types don't fit a human-filling-a-checklist workflow. Every task still carries `<read_first>`, `<action>`, and `<acceptance_criteria>`, so the deep-work rules are honored in spirit. This deviation is deliberate, not an oversight.
 </context>
 
 <tasks>
