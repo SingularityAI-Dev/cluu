@@ -1,7 +1,8 @@
 # Phase 1: Scaffold - Context
 
 **Gathered:** 2026-04-20 (auto mode — recommended defaults logged)
-**Status:** Ready for planning
+**Updated:** 2026-04-20 (interactive revision — proxy convention + Vitest 4 bump)
+**Status:** Ready for planning — **Plans 01 + 02 need regeneration** (see footer)
 
 <domain>
 ## Phase Boundary
@@ -43,17 +44,22 @@ BLOCKER pitfalls absorbed: Pitfall 4 (anon→authed migration), Pitfall 5 (Phase
 ### State persistence
 - **D-15:** Zustand store uses the **Store Factory + `<StoreProvider>`** pattern per Next.js App Router guidance (STACK.md "Integration gotchas") — no global singleton. Persist middleware writes to `localStorage` under key `cluu-game-v1`.
 - **D-16:** On auth state change from anonymous → authed, client reads localStorage + POSTs a single idempotent `/api/migrate-anonymous` Server Action that no-ops if the migration flag is already set on `player_state`. Write an integration test for this path in Phase 1, not Phase 3 (Pitfall 4).
-- **D-17:** Supabase server-side access always calls `supabase.auth.getUser()` (never `getSession()`) in Server Components, Server Actions, middleware, and Route Handlers.
+- **D-17:** Supabase server-side access always calls `supabase.auth.getUser()` (never `getSession()`) in Server Components, Server Actions, the Next.js `proxy.ts` (see D-25), and Route Handlers.
 - **D-18:** Row-Level Security is enabled on every table (`users`, `player_state`, `library_entries`, `cosmetic_catalogue`, `user_cosmetics`, `encounter_attempts`) with `user_id = auth.uid()` policies. A negative test confirms user A cannot read user B's `player_state` before Phase 1 exits.
 
 ### Deploy + ops
 - **D-19:** Deploy to Vercel on branch push from day 1. Production domain `cluu.game` is wired after DNS is provisioned — Phase 1 can ship to `cluu-preview.vercel.app` if `cluu.game` isn't ready yet; success criteria don't require the vanity domain.
 - **D-20:** PostHog is initialised behind a **cookie-consent gate** in `app/layout.tsx` — no analytics events fire until the user has opted in via a lightweight banner on first visit (Pitfall 12, POPIA). Banner copy: "We use PostHog to understand gameplay. Accept or decline — no dark patterns."
-- **D-21:** Sentry is wired into `app/global-error.tsx` and middleware in Phase 1. Event volume will be near zero but the wiring is in place for Phase 2's grading-pipeline errors.
+- **D-21:** Sentry is wired into `app/global-error.tsx` and the Next.js `proxy.ts` (see D-25) in Phase 1. Event volume will be near zero but the wiring is in place for Phase 2's grading-pipeline errors.
 - **D-22:** Runtime target for all server entry points in Phase 1: **Node.js / Fluid Compute** (default). No Edge runtime anywhere yet; `next/og` doesn't ship until Phase 4.
 
+### Next.js 16 middleware → proxy convention (revision added 2026-04-20)
+- **D-25:** Use Next.js 16's `proxy.ts` file convention (**not** `middleware.ts`). The file lives at the project root as `proxy.ts` and exports a named `proxy` function (not `middleware`). Rationale: Next 16 deprecated the `middleware.ts` / `middleware` name pair and renamed them to `proxy.ts` / `proxy`. Supabase's official SSR documentation has been updated to match the new convention as of April 2026. The earlier note in this file that Supabase docs still used `middleware.ts` was factually outdated.
+- **D-26:** Inside `proxy.ts`, the Supabase cookie-sync pattern MUST explicitly copy cookies from the incoming `request` to a **mutable** `NextResponse` object before returning. If you return the response without this sync, users hit a known sign-out-loop bug on the `proxy.ts` convention where the refreshed session cookie is set on a response the middleware discards. Pattern: `const response = NextResponse.next({ request }); supabase.auth.getUser(); // triggers refresh; response.cookies.set(...) for each refreshed cookie`.
+- **D-27:** Rename `lib/supabase/middleware.ts` → `lib/supabase/proxy.ts` for internal consistency with the root-level `proxy.ts`. Any helper exported from this file is `createProxyClient` (not `createMiddlewareClient`). Update every import that referenced the old filename.
+
 ### Testing
-- **D-23:** Vitest is the unit test runner from day 1. Phase 1 ships with tests for: (a) Zustand store factory hydration, (b) anonymous→authed migration action idempotency, (c) sanitize() placeholder (even though Phase 2 owns the real implementation).
+- **D-23 (revised 2026-04-20):** Vitest is the unit test runner from day 1, pinned to **`vitest@^4.1`** (Vitest 4.1.4 is the current stable release on npm as of April 2026) and `@vitest/ui@^4.1`. The earlier auto-selected `^2.1.8` pin was two major versions behind. Vitest 4 requires Node ≥ 20 and Vite ≥ 6, both satisfied by the existing Node 24 pin. Migration surface to be aware of (none of Phase 1's three planned tests touch these, so this is a clean bump with no rewrites): V8 coverage now uses AST-based analysis — coverage numbers will differ from v2; the `workspace` config option was renamed to `projects`; the browser provider config accepts an object instead of a string. Phase 1 ships with tests for: (a) Zustand store factory hydration, (b) anonymous→authed migration action idempotency, (c) sanitize() placeholder (even though Phase 2 owns the real implementation).
 - **D-24:** Playwright E2E is deferred to Phase 5. Phase 1 relies on manual smoke on iOS Safari, Android Chrome, desktop Chrome/Firefox/Safari.
 
 ### Claude's Discretion
@@ -114,7 +120,8 @@ BLOCKER pitfalls absorbed: Pitfall 4 (anon→authed migration), Pitfall 5 (Phase
 
 ### Integration Points
 - Next.js `app/layout.tsx` — root layout wraps StoreProvider + consent gate
-- `middleware.ts` — Supabase session refresh runs on every matched request
+- `proxy.ts` (Next.js 16 convention — see D-25/D-26) — Supabase session refresh runs on every matched request; exports a named `proxy` function; cookies synced explicitly to a mutable response (D-26 pattern)
+- `lib/supabase/proxy.ts` (see D-27) — `createProxyClient` helper used by the root `proxy.ts`
 - `app/play/GameClient.tsx` — Phaser mount point, `next/dynamic ssr:false`, the ONE import boundary between Next and Phaser
 - `app/auth/callback/route.ts` — magic-link callback that completes the anonymous upgrade
 - `supabase/migrations/*.sql` — schema + RLS policies; migration runs in CI and locally via `supabase db reset`
@@ -146,5 +153,16 @@ BLOCKER pitfalls absorbed: Pitfall 4 (anon→authed migration), Pitfall 5 (Phase
 
 ---
 
+## Revision 1 — Plan regeneration required (2026-04-20)
+
+Two decisions were added/revised after the initial auto run:
+
+- **D-25/D-26/D-27** — Next.js 16 `proxy.ts` convention (rename, function export, cookie-sync bug workaround). Touches **Plan 01** (any `middleware.ts` scaffolding references) and **Plan 02** (file rename, function rename, cookie-sync pattern in `lib/supabase/proxy.ts`).
+- **D-23 revised** — Vitest bumped from `^2.1.8` to `^4.1`. Touches **Plan 01** (install block, any `vitest.config.ts` shape if present).
+
+**Action:** regenerate **Plans 01 and 02 only**. Plans 03–08 should be unaffected — confirm during review rather than asserting it. Suggested command: `/gsd:plan-phase 1 --reviews` (after producing a REVIEWS.md) OR re-run the planner manually on Plans 01/02 with the revised CONTEXT.md.
+
+---
+
 *Phase: 01-scaffold*
-*Context gathered: 2026-04-20*
+*Context gathered: 2026-04-20; revised 2026-04-20*

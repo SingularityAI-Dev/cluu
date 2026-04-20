@@ -124,3 +124,41 @@
 - Branded SMTP (Resend) → Phase 5
 - Playwright E2E suite → Phase 5
 - Visual style guide + final tile art → separate deliverable per design doc §16
+
+---
+
+## Revision 1 (2026-04-20) — Interactive update
+
+**Mode:** interactive
+**Initiated by:** user via `/gsd:discuss-phase 1` after auto-run
+**Areas discussed:** Next.js 16 middleware convention (new), Testing (D-23 revised)
+
+### Next.js 16 middleware → proxy convention (new)
+
+| Option | Description | Selected |
+|--------|-------------|----------|
+| Keep `middleware.ts` | Continue with the Next.js 14 convention as originally planned | |
+| Switch to `proxy.ts` + exported `proxy` function + cookie-sync pattern | Next 16 deprecated `middleware.ts`/`middleware`; Supabase SSR docs updated to match; requires explicit cookie sync from request → mutable response to avoid sign-out-loop bug | ✓ |
+
+**User's choice:** `proxy.ts` convention.
+**Notes:** User specified the exact fix pattern and noted the earlier "Supabase docs still use middleware.ts" assumption was factually outdated as of April 2026. Rename `lib/supabase/middleware.ts` → `lib/supabase/proxy.ts` for internal consistency. New decisions: **D-25** (file/function rename), **D-26** (cookie-sync pattern to avoid sign-out-loop), **D-27** (lib rename + import updates).
+
+### Testing (D-23 revised)
+
+| Option | Description | Selected |
+|--------|-------------|----------|
+| Keep `vitest@^2.1.8` | Original auto-selected pin | |
+| Bump to `vitest@^4.1` | Current stable as of April 2026; Vitest 4.1.4 on npm; requires Node ≥ 20 + Vite ≥ 6 (both satisfied by Node 24 pin) | ✓ |
+
+**User's choice:** Bump to `vitest@^4.1` + `@vitest/ui@^4.1`.
+**Notes:** Migration surface flagged but not blocking for Phase 1:
+- V8 coverage uses AST-based analysis (more accurate, expect coverage numbers to differ from v2)
+- `workspace` config option renamed to `projects`
+- Browser provider config accepts an object instead of a string
+- None of Phase 1's three planned tests (store factory hydration, migration idempotency, sanitize placeholder) touch the changed surfaces → clean bump, no rewrites required.
+
+### Plan regeneration scope
+
+- Regenerate **Plans 01 and 02 only**.
+- Plans 03–08 should be unaffected — confirm during review rather than asserting it.
+- Suggested next step: run the planner on Plans 01/02 with the updated CONTEXT.md, then verify Plans 03–08 don't reference `middleware.ts` or the old Vitest pin.
