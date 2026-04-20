@@ -71,7 +71,7 @@ A cozy browser game that teaches prompting and Claude fluency through gameplay. 
 
 ## Constraints
 
-- **Tech stack**: Next.js 14 App Router + Phaser.js 3.80+ (Canvas renderer) + Supabase (Auth + Postgres) + Vercel — locked per design doc §8. Deviations require explicit revision of the doc.
+- **Tech stack**: Next.js 16.2.x App Router + Phaser.js 3.90.x (Canvas renderer) + Supabase (Auth + Postgres) + Vercel — locked per design doc §8 as amended 2026-04-20. Further deviations require explicit revision of the doc.
 - **LLM providers**: Claude Sonnet 4.6 for generation, Claude Haiku 4.5 for grading, via Anthropic API. No alternative providers in v1.
 - **Platform**: Browser-first (desktop + mobile web). Touch and keyboard input from day one. Native wrappers deferred to v1.2.
 - **Input sanitization**: Max 500 chars on player prompts, XML-like tag stripping, grader system prompt must explicitly ignore meta-instructions from user input.
@@ -90,7 +90,7 @@ A cozy browser game that teaches prompting and Claude fluency through gameplay. 
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Browser-first via Next.js 14 + Phaser + Vercel | Known territory for the solo builder, Vercel-native SSR for landing/share cards, Phaser is mature for 2D cozy | — Pending |
+| Browser-first via Next.js 16 + Phaser 3.90 + Vercel | Vercel-native SSR for landing/share cards, Phaser mature for 2D cozy. Next 16 chosen over locked-doc 14 because 14 hit EOL 2025-10-26 (no security patches). Amendment recorded in design doc footer. | — Pending |
 | Every encounter is a `.logic.md` file (not hardcoded) | Content authorability (author 5 encounters in an evening), dogfoods LOGIC.md flagship, enables community authoring in v1.3 | — Pending |
 | Two-call grading architecture (Sonnet generate + Haiku grade) | Narrative quality from Sonnet, cheap reliable structured grading from Haiku, cost stays viable | — Pending |
 | Supabase over Firebase | Better POPIA story, Postgres we can query, already familiar to builder | — Pending |
