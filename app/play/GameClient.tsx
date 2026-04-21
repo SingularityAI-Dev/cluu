@@ -1,9 +1,16 @@
 // app/play/GameClient.tsx
 // D-09: the ONE import boundary from Next into Phaser.
 // Pitfall 5 absorbed: useRef guard + cleanup invariant + StrictMode compatible.
+//
+// Plan 01-07 wraps the canvas in <AuthAwareShell> so:
+//   - first-visit anonymous Supabase session is created (AUTH-01)
+//   - onAuthStateChange drives the anon→authed migration POST (AUTH-03 client)
+// and renders <SettingsMenu /> so D-06 is reachable during gameplay.
 'use client';
 import { useEffect, useRef } from 'react';
 import type { GameInstance } from '@/game';
+import { SettingsMenu } from '@/ui/SettingsMenu';
+import { AuthAwareShell } from './AuthAwareShell';
 
 interface GameClientProps {
   userId: string | null;
@@ -43,10 +50,13 @@ export default function GameClient(_props: GameClientProps) {
   }, []);
 
   return (
-    <div
-      ref={parentRef}
-      id="phaser-parent"
-      style={{ width: '100%', maxWidth: 768, margin: '0 auto', aspectRatio: '4 / 3' }}
-    />
+    <AuthAwareShell>
+      <SettingsMenu />
+      <div
+        ref={parentRef}
+        id="phaser-parent"
+        style={{ width: '100%', maxWidth: 768, margin: '0 auto', aspectRatio: '4 / 3' }}
+      />
+    </AuthAwareShell>
   );
 }

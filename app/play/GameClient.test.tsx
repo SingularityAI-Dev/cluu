@@ -1,9 +1,24 @@
 // app/play/GameClient.test.tsx
 // Pitfall 5 BLOCKER absorption proof: lifecycle assertions for the single-Game invariant.
 // jsdom can't run Phaser's real canvas — we mock @/game and check call counts instead.
+//
+// Plan 01-07 note: GameClient now wraps its children in <AuthAwareShell>, which pulls
+// from the Zustand store via useMigrateOnSignIn. We mock AuthAwareShell here so these
+// tests stay pure-lifecycle (the shell's own behaviour is covered by
+// useMigrateOnSignIn.test.tsx). This keeps the Pitfall 5 assertions independent of
+// Supabase client + StoreProvider plumbing.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from '@testing-library/react';
-import { StrictMode } from 'react';
+import { StrictMode, type ReactNode } from 'react';
+
+// Mock the shell so GameClient renders its children directly. SettingsMenu renders too
+// but has its own test suite and only needs the signOut server-action import stubbed.
+vi.mock('./AuthAwareShell', () => ({
+  AuthAwareShell: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+vi.mock('@/app/auth/actions', () => ({
+  signOut: Object.assign(vi.fn(async () => {}), { $$typeof: Symbol('ServerAction') }),
+}));
 
 // Mock @/game BEFORE importing the component so the dynamic import resolves to the spy.
 const destroySpy = vi.fn();
