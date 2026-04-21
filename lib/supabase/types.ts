@@ -1,6 +1,8 @@
 // lib/supabase/types.ts
 // Hand-written minimal Database type. Matches migrations 20260420000001 + 20260420000002.
 // Phase 2 may regenerate via `pnpm exec supabase gen types typescript --local`.
+// Each table carries an empty `Relationships: []` tuple so the postgrest-js
+// GenericTable constraint (Row/Insert/Update/Relationships) is satisfied.
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
@@ -33,6 +35,7 @@ export type Database = {
           display_name?: string | null;
           last_active_at?: string;
         };
+        Relationships: [];
       };
       player_state: {
         Row: {
@@ -61,6 +64,7 @@ export type Database = {
           migration_processed?: boolean;
           updated_at?: string;
         };
+        Relationships: [];
       };
       library_entries: {
         Row: {
@@ -89,6 +93,7 @@ export type Database = {
           grade?: VerdictGrade;
           tags?: string[];
         };
+        Relationships: [];
       };
       cosmetic_catalogue: {
         Row: {
@@ -112,6 +117,7 @@ export type Database = {
           sprite_path: string;
           unlock_condition: Json;
         }>;
+        Relationships: [];
       };
       user_cosmetics: {
         Row: {
@@ -126,7 +132,8 @@ export type Database = {
           acquired_at?: string;
           acquisition_source?: string | null;
         };
-        Update: never;
+        Update: Record<string, never>;
+        Relationships: [];
       };
       encounter_attempts: {
         Row: {
@@ -149,9 +156,12 @@ export type Database = {
           cached?: boolean;
           created_at?: string;
         };
-        Update: never;
+        Update: Record<string, never>;
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
     Enums: {
       cluu_mood: CluuMood;
       verdict_grade: VerdictGrade;
