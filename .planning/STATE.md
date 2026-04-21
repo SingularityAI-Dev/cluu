@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-20)
 ## Current Position
 
 Phase: 01 (scaffold) — EXECUTING
-Plan: 5 of 8 (01-01, 01-02, 01-03 complete; 01-04 next)
-Status: Ready to execute
-Last activity: 2026-04-21
+Plan: 5 of 8 (01-01, 01-02, 01-03, 01-04 complete; 01-05 next)
+Status: Ready to execute Plan 01-05 (anchor + Cluu sprite)
+Last activity: 2026-04-21 — Plan 01-04 (Phaser mount at /play) complete; game/ scaffold + EventBus + 3 scenes + dynamic-import Client shim; Pitfall 5 BLOCKER absorbed with 4 lifecycle tests; WORLD-01 closed
 
-Progress: [████░░░░░░] 38%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -93,7 +93,7 @@ None yet.
 
 Last session: 2026-04-21T03:26:47.658Z
 Stopped at: Completed 01-04-phaser-mount-PLAN.md; handing off to Plan 01-05 (anchor + Cluu)
-Resume file: None
+Resume file: .planning/phases/01-scaffold/01-05-anchor-cluu-PLAN.md
 
 **Pre-wired by user (2026-04-21):**
 
