@@ -1,7 +1,7 @@
 // game/scenes/UIScene.ts
 // D-07: Phaser-layer HUD separate from the React overlay.
 // Phase 1: empty. Phase 3 adds mood badge + cosmetic indicators.
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 
 export class UIScene extends Phaser.Scene {
   constructor() {

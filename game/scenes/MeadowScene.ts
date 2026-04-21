@@ -1,6 +1,6 @@
 // game/scenes/MeadowScene.ts
 // Phase 1 Meadow: paints a grid of grass tiles. Plan 05 adds PlayerAnchor + Cluu to this scene.
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 
 export class MeadowScene extends Phaser.Scene {
   constructor() {

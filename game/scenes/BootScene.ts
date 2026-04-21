@@ -1,6 +1,6 @@
 // game/scenes/BootScene.ts
 // D-07: Multi-scene architecture. BootScene preloads and hands off.
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { bus } from '../bridge/EventBus';
 
 export class BootScene extends Phaser.Scene {

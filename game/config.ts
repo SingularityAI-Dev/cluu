@@ -1,6 +1,6 @@
 // game/config.ts
 // Phaser config: Canvas renderer (design doc §8 lock), Arcade Physics, 3 scenes (D-07).
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
 import { MeadowScene } from './scenes/MeadowScene';
 import { UIScene } from './scenes/UIScene';
