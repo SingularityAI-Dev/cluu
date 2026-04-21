@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-02-supabase-auth-PLAN.md; handing off to Plan 01-03 (Zustand + anonymous migration)
-last_updated: "2026-04-21T02:52:22.212Z"
+stopped_at: Completed 01-03-zustand-migration-PLAN.md; handing off to Plan 01-04 (Phaser mount)
+last_updated: "2026-04-21T03:07:43.782Z"
 last_activity: 2026-04-21
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 8
-  completed_plans: 2
-  percent: 25
+  completed_plans: 3
+  percent: 38
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-20)
 ## Current Position
 
 Phase: 01 (scaffold) — EXECUTING
-Plan: 3 of 8 (01-01, 01-02 complete; 01-03 next)
-Status: Ready to execute Plan 01-03 (Zustand + anonymous migration)
-Last activity: 2026-04-21 -- Plan 01-02 (Supabase auth) complete; schema + RLS + proxy.ts + magic-link flow landed, negative RLS test 4/4 green
+Plan: 4 of 8 (01-01, 01-02, 01-03 complete; 01-04 next)
+Status: Ready to execute Plan 01-04 (Phaser mount)
+Last activity: 2026-04-21 — Plan 01-03 (Zustand + anonymous migration) complete; Store Factory + idempotent /api/migrate-anonymous landed, 17/17 new tests green, Pitfall 4 BLOCKER absorbed
 
-Progress: [███░░░░░░░] 25%
+Progress: [████░░░░░░] 38%
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [███░░░░░░░] 25%
 
 *Updated after each plan completion*
 | Phase 01-scaffold P02 | 36min | 3 tasks | 16 files |
+| Phase 01-scaffold P03 | 10min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,9 @@ Recent decisions affecting current work:
 - **Tide Pools is the scope-flex lever**: if behind at Phase 4 midpoint, drop CONT-04 to v1.1 per design doc §12. Library export, grading reliability, and first-encounter magic are never cut.
 - [Phase 01-scaffold]: Hand-rolled Database type covers Row/Insert/Update/Relationships per table + Views/Functions; postgrest-js 2.104 GenericSchema requires these keys or mutation signatures collapse to never. Phase 2 may regenerate via supabase gen types typescript --local.
 - [Phase 01-scaffold]: D-17 grep gate: comment prose reworded to the-cached-session-helper so grep -rn getSession lib/ app/ proxy.ts returns zero matches. Teaching comments can silently violate grep gates; always check the plan's final verification step, not just task acceptance criteria.
+- [Phase 01-scaffold]: Store Factory (D-15) enforced — createGameStore is a function; StoreProvider uses useRef per-mount so each SSR request / browser hydration gets an independent store. Global singleton leak prevented.
+- [Phase 01-scaffold]: Pitfall 4 BLOCKER absorbed: applyAnonymousMigration reads player_state.migration_processed first, short-circuits if true. Double-invoke proven a no-op by 4-case Vitest suite + 5-case route test. Library rows never duplicate.
+- [Phase 01-scaffold]: Introduced tests/stubs/server-only.ts + vitest.config alias because Vite cannot resolve Next's virtual 'server-only' package; Next's build-time guard still fires at pnpm build.
 
 ### Pending Todos
 
@@ -83,9 +87,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-21T02:52:22.210Z
-Stopped at: Completed 01-02-supabase-auth-PLAN.md; handing off to Plan 01-03 (Zustand + anonymous migration)
-Resume file: .planning/phases/01-scaffold/01-03-zustand-migration-PLAN.md
+Last session: 2026-04-21T03:07:14.213Z
+Stopped at: Completed 01-03-zustand-migration-PLAN.md; handing off to Plan 01-04 (Phaser mount)
+Resume file: .planning/phases/01-scaffold/01-04-phaser-mount-PLAN.md
 
 **Pre-wired by user (2026-04-21):**
 
