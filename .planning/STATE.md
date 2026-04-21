@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Phase 1 context revised (proxy.ts + Vitest 4)
-last_updated: "2026-04-20T20:08:15.368Z"
-last_activity: 2026-04-20 -- Phase 1 planning complete
+stopped_at: Plan 01-01 complete — handing off to Plan 01-02 (Supabase auth)
+last_updated: "2026-04-21T03:55:00.000Z"
+last_activity: 2026-04-21 -- Plan 01-01 (repo scaffold) complete; Supabase + Vercel pre-wired by user
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 8
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 12.5
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-20)
 
 **Core value:** The Library is the tether between game and real life — every great prompt a player writes becomes a real, exportable tool they can use in Cursor, Claude Code, and Cowork. If everything else ships and the Library export doesn't work, the project has failed.
-**Current focus:** Phase 1 — Scaffold
+**Current focus:** Phase 01 — scaffold
 
 ## Current Position
 
-Phase: 1 of 5 (Scaffold)
-Plan: 0 of TBD in current phase
-Status: Ready to execute
-Last activity: 2026-04-20 -- Phase 1 planning complete
+Phase: 01 (scaffold) — EXECUTING
+Plan: 2 of 8 (01-01 complete; 01-02 next)
+Status: Executing Phase 01 — Wave 1 Plan 01-02 ready
+Last activity: 2026-04-21 -- Plan 01-01 (repo scaffold) complete; Supabase + Vercel pre-wired by user
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 12.5%
 
 ## Performance Metrics
 
@@ -80,6 +80,11 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-20T19:24:53.343Z
-Stopped at: Phase 1 context revised (proxy.ts + Vitest 4)
-Resume file: .planning/phases/01-scaffold/01-CONTEXT.md
+Last session: 2026-04-21T03:55:00.000Z
+Stopped at: Plan 01-01 complete — Supabase auth (Plan 01-02) next
+Resume file: .planning/phases/01-scaffold/01-02-supabase-auth-PLAN.md
+
+**Pre-wired by user (2026-04-21):**
+- Vercel project linked locally (`.vercel/project.json` → `prj_iUafjPILCC46QfSyQYv52lLHrU98`, team `huboneintelligence-2022`, URL https://vercel.com/huboneintelligence-2022s-projects/cluu)
+- Supabase CLI initialized + linked to remote `https://xiccqasycfzodfgbcawh.supabase.co` (`supabase/config.toml` present at repo root)
+- Supabase publishable (anon) key provided by user; service-role key not yet captured. User plans to rotate both post-launch.
