@@ -2,6 +2,7 @@
 // Phase 1 Meadow: grass grid + PlayerAnchor + InputSystem + camera follow.
 // Task 3 adds Cluu.
 import * as Phaser from 'phaser';
+import { Cluu } from '../entities/Cluu';
 import { PlayerAnchor } from '../entities/PlayerAnchor';
 import { InputSystem } from '../systems/input';
 
@@ -9,6 +10,7 @@ export class MeadowScene extends Phaser.Scene {
   private anchor?: PlayerAnchor;
   // Renamed from `input` to avoid shadowing Phaser.Scene.input (the InputPlugin).
   private inputSystem?: InputSystem;
+  private cluu?: Cluu;
 
   constructor() {
     super({ key: 'MeadowScene' });
@@ -44,11 +46,16 @@ export class MeadowScene extends Phaser.Scene {
     // Camera follow with D-12 lerp — soft follow bounded to scene dimensions.
     this.cameras.main.startFollow(this.anchor, true, 0.1, 0.1);
     this.cameras.main.setLerp(0.1, 0.1); // D-12 literal match
+
+    // Spawn Cluu slightly offset so the follow/trailing behavior reads immediately (CLUU-01).
+    this.cluu = new Cluu(this, worldW / 2 + 48, worldH / 2 + 48);
   }
 
   update(_time: number, deltaMs: number) {
     if (!this.anchor || !this.inputSystem) return;
     this.anchor.tick(this.inputSystem.readKeyboardDelta(), deltaMs);
+    // CLUU-01: Cluu follows the anchor like a pet, never directly controlled.
+    this.cluu?.follow(this.anchor.x, this.anchor.y, deltaMs);
   }
 
   shutdown() {
