@@ -11,6 +11,14 @@ export class BootScene extends Phaser.Scene {
   preload() {
     // Placeholder grass tile — visual style deferred per CONTEXT.md specifics.
     this.load.image('grass', '/sprites/grass_32.png');
+    // D-13: 4-layer Cluu compositing pipeline. 5 slots counting the base body.
+    // Phase 1 ships a single "Content" pose (cluu_base); the other four slots are blank
+    // transparent placeholders so Phase 3 cosmetics can drop in via a texture swap only.
+    this.load.image('cluu_base', '/sprites/cluu_base.png');
+    this.load.image('cluu_body_pattern', '/sprites/cluu_body_pattern.png');
+    this.load.image('cluu_head', '/sprites/cluu_head.png');
+    this.load.image('cluu_eyes', '/sprites/cluu_eyes.png');
+    this.load.image('cluu_back', '/sprites/cluu_back.png');
   }
 
   create() {
