@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
-status: awaiting-manual-smoke
-stopped_at: 01-08 MANUAL-SMOKE.md + 01-08-SUMMARY.md committed; green-chain preflight captured at bfdbc24 (typecheck 0, test 65/4-skip, lint 0-err/6-warn, build 4.0s 7 routes, getSession grep = 0, dev HTTP 200). OPS-04 remains open. Human runs the 10-step smoke across 5 browsers, fills the matrix in MANUAL-SMOKE.md, then triggers closeout.
-last_updated: "2026-04-21T04:03:43Z"
+status: planning
+stopped_at: Phase 01.1 context gathered — chunky pixel art, chubby 4-legged Cluu, biome-palette system, AI+Aseprite pipeline
+last_updated: "2026-04-21T12:20:15.622Z"
 last_activity: 2026-04-21
 progress:
-  total_phases: 5
-  completed_phases: 0
+  total_phases: 6
+  completed_phases: 1
   total_plans: 8
-  completed_plans: 7
-  percent: 87.5
+  completed_plans: 8
+  percent: 100
 ---
 
 # Project State
@@ -98,6 +98,10 @@ Recent decisions affecting current work:
 
 None yet.
 
+### Roadmap Evolution
+
+- Phase 01.1 inserted after Phase 1: Visual style + Cluu feel (URGENT — interstitial visual/affective pass before encounter engine; design doc 2026-04-21)
+
 ### Blockers/Concerns
 
 - **BLOCKER pitfalls concentrated in Phase 1–2**: Haiku model-version drift (Pitfall 1), creative-prompt false-reject (Pitfall 2), first-5-minutes onboarding failure (Pitfall 3), Library export regression (Pitfall 10). Each is phase-mapped in ROADMAP.md detail sections.
@@ -106,9 +110,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-21T04:01:27Z
-Stopped at: 01-08 MANUAL-SMOKE.md + 01-08-SUMMARY.md committed; green-chain preflight captured at bfdbc24 (typecheck 0, test 65/4-skip, lint 0-err/6-warn, build 4.0s 7 routes, getSession grep = 0, dev HTTP 200). OPS-04 remains open. Human runs the 10-step smoke across 5 browsers, fills the matrix in MANUAL-SMOKE.md, then triggers closeout.
-Resume file: .planning/phases/01-scaffold/MANUAL-SMOKE.md (human-filled) → then re-run `/gsd-execute-phase` or manual closeout to mark OPS-04 complete + flip ROADMAP + bump STATE to 8/8
+Last session: 2026-04-21T12:20:15.618Z
+Stopped at: Phase 01.1 context gathered — chunky pixel art, chubby 4-legged Cluu, biome-palette system, AI+Aseprite pipeline
+Resume file: .planning/phases/01.1-visual-style-cluu-feel/01.1-CONTEXT.md
 
 **Pre-wired by user (2026-04-21):**
 
