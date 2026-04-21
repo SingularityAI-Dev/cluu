@@ -21,7 +21,13 @@ vi.mock('@/game', () => ({
 // (CanvasFeatures.checkInverseAlpha). jsdom returns null, which crashes the probe. Vite still
 // evaluates the real `@/game` module graph even when @/game is mocked, so we stub `phaser`
 // with the minimal shape scenes extend / config references.
+// Plan 05 added Cluu (extends Phaser.GameObjects.Container) and PlayerAnchor
+// (extends Phaser.Physics.Arcade.Sprite) into the MeadowScene module graph, so the stub
+// now needs those class shapes for the class-extends lookup to succeed at module eval.
 class FakeScene {}
+class FakeContainer {}
+class FakeSprite {}
+class FakeArcadeSprite {}
 const PhaserStub = {
   Scene: FakeScene,
   Game: class {
@@ -31,6 +37,22 @@ const PhaserStub = {
   AUTO: 0,
   WEBGL: 2,
   Scale: { FIT: 0, CENTER_BOTH: 0 },
+  GameObjects: { Container: FakeContainer, Sprite: FakeSprite },
+  Physics: { Arcade: { Sprite: FakeArcadeSprite, Body: class {} } },
+  Input: {
+    Keyboard: {
+      KeyCodes: {
+        W: 0,
+        A: 0,
+        S: 0,
+        D: 0,
+        UP: 0,
+        LEFT: 0,
+        DOWN: 0,
+        RIGHT: 0,
+      },
+    },
+  },
 };
 vi.mock('phaser', () => ({
   default: PhaserStub,
