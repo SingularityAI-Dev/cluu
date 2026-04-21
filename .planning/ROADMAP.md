@@ -106,7 +106,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 (decimal phases, if e
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Scaffold | 0/TBD | Not started | - |
+| 1. Scaffold | 7/8 | In progress | - |
 | 2. Walking Skeleton | 0/TBD | Not started | - |
 | 3. Meadow + Persistence + Library MD | 0/TBD | Not started | - |
 | 4. Remaining Biomes + Share Cards | 0/TBD | Not started | - |

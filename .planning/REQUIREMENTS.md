@@ -13,7 +13,7 @@ Requirements for initial release. Each maps to exactly one roadmap phase. REQ-ID
 - [x] **AUTH-02**: User can sign in via Supabase magic-link email
 - [x] **AUTH-03**: Anonymous player's state (encounters, library entries, cosmetics) migrates into their account on signup without data loss
 - [x] **AUTH-04**: User session persists across browser refresh via Supabase SSR cookies
-- [ ] **AUTH-05**: User can sign out from any screen
+- [x] **AUTH-05**: User can sign out from any screen
 - [ ] **AUTH-06**: User can request deletion of their account and all associated data (POPIA right-to-deletion)
 
 ### World
@@ -178,7 +178,7 @@ All 71 v1 requirements mapped to exactly one phase. Populated by roadmapper 2026
 | AUTH-02 | Phase 1 | Complete |
 | AUTH-03 | Phase 1 | Complete |
 | AUTH-04 | Phase 1 | Complete |
-| AUTH-05 | Phase 1 | Pending |
+| AUTH-05 | Phase 1 | Complete |
 | AUTH-06 | Phase 4 | Pending |
 | WORLD-01 | Phase 1 | Complete |
 | WORLD-02 | Phase 1 | Complete |
