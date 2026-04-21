@@ -1,7 +1,7 @@
 // game/index.ts
 // The ONLY entry point from React into Phaser. app/play/GameClient.tsx is the ONLY consumer.
 // D-08: single Phaser.Game per page mount. Cleanup runs game.destroy(true, false).
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { buildConfig } from './config';
 
 export interface GameInstance {
