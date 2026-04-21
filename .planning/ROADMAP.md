@@ -35,6 +35,20 @@ Decimal phases appear between their surrounding integers in numeric order.
 **BLOCKER pitfalls absorbed**: Pitfall 4 (anon→authed migration via `/api/migrate-anonymous` idempotent route), Pitfall 5 (Phaser SSR + scene-leak guards, strict-mode on, single-page-game architecture), Pitfall 12 (PostHog consent-gate before any analytics load, privacy policy draft)
 **Research flag**: Skip `/gsd-research-phase` — stack alignment follows official `phaserjs/template-nextjs` + Supabase App Router docs + Zustand Next.js guide; no novel integration work
 
+### Phase 01.1: Visual style + Cluu feel (INSERTED)
+
+**Goal:** Replace Phase 1 placeholder art with production visual identity. Ship design-doc §16 single-image style guide, `lib/design/tokens.ts` named palette + spacing + radii, production Cluu Content pose (chubby 4-legged creature, 48×48, Aseprite-authored) with idle animation (breath baseline + occasional blink + occasional head_turn), production Meadow grass tile using the locked D-09 green triad, Withered Sunflower before/after encounter sprites (unblocking Phase 2's Describe encounter), and a reusable encounter-object authoring spec so Phases 2–4 inherit the art-production contract.
+**Requirements**: none (INSERTED art/quality phase — no REQ-IDs map here)
+**Depends on:** Phase 1
+**Plans:** 5 plans
+
+Plans:
+- [ ] 01.1-01-PLAN.md — Create lib/design/tokens.ts (named palette + spacing + radii + hexToInt)
+- [ ] 01.1-02-PLAN.md — Write docs/encounter-object-authoring.md authoring spec
+- [ ] 01.1-03-PLAN.md — Human-in-the-loop art delivery (Cluu spritesheet + meadow tile + Sunflower before/after + style guide)
+- [ ] 01.1-04-PLAN.md — Wire production art into Phaser (BootScene Aseprite loader + Cluu idle animation + tokens consumed by config/MeadowScene)
+- [ ] 01.1-05-PLAN.md — Palette-audit Vitest test + sprite-fixtures exit-gate test + verification sweep
+
 ### Phase 2: Walking Skeleton — The One Encounter
 **Goal**: End-to-end encounter loop works on ONE plant — the Withered Sunflower. Player taps plant, writes a prompt, sees Sonnet response stream, plant revives visually, Haiku grades the prompt, verdict renders with per-assertion breakdown. Grading Gateway, LOGIC.md compiler, rate-limit, cache, EventBus, and dispute flow all prove out before any content volume.
 **Depends on**: Phase 1
