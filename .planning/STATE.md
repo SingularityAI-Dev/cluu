@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-04-phaser-mount-PLAN.md; handing off to Plan 01-05 (anchor + Cluu)
-last_updated: "2026-04-21T03:27:05.300Z"
+stopped_at: Completed 01-06-consent-analytics-PLAN.md; PostHog gated behind consent, Sentry wired; user still needs to paste Sentry env vars into .env.local before production deploy
+last_updated: "2026-04-21T03:45:13.188Z"
 last_activity: 2026-04-21
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 8
-  completed_plans: 4
-  percent: 50
+  completed_plans: 5
+  percent: 63
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-04-20)
 ## Current Position
 
 Phase: 01 (scaffold) — EXECUTING
-Plan: 5 of 8 (01-01, 01-02, 01-03, 01-04 complete; 01-05 next)
-Status: Ready to execute Plan 01-05 (anchor + Cluu sprite)
-Last activity: 2026-04-21 — Plan 01-04 (Phaser mount at /play) complete; game/ scaffold + EventBus + 3 scenes + dynamic-import Client shim; Pitfall 5 BLOCKER absorbed with 4 lifecycle tests; WORLD-01 closed
+Plan: 6 of 8 (01-01, 01-02, 01-03, 01-04 complete; 01-05 next)
+Status: Ready to execute
+Last activity: 2026-04-21
 
 Progress: [█████░░░░░] 50%
 
@@ -59,6 +59,7 @@ Progress: [█████░░░░░] 50%
 | Phase 01-scaffold P02 | 36min | 3 tasks | 16 files |
 | Phase 01-scaffold P03 | 10min | 2 tasks | 13 files |
 | Phase 01-scaffold P04 | 13min | 2 tasks | 13 files |
+| Phase 01-scaffold P06 | 10min | 2 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,9 @@ Recent decisions affecting current work:
 - [Phase 01-scaffold]: Phaser namespace import (import * as Phaser from 'phaser') mandatory — Phaser 3.90 ESM bundle has no default export and Next 16 Turbopack enforces ESM strictly. TypeScript export= still types it correctly.
 - [Phase 01-scaffold]: GameClientLoader.tsx Client shim introduced — Next 16 forbids next/dynamic({ssr:false}) in Server Components; Client wrapper preserves D-09 while satisfying the RSC rule.
 - [Phase 01-scaffold]: Pitfall 5 absorbed — useRef guard + cancelled-flag pattern in GameClient.tsx; 4 lifecycle tests prove net-alive=0 after unmount even under StrictMode.
+- [Phase 01-scaffold]: Plan 01-06: TrackEvent union in lib/analytics/track.ts is the structural enforcement of 'never log raw prompts to analytics' — no variant has free-text fields, so privacy leaks are compile errors.
+- [Phase 01-scaffold]: Plan 01-06: Sentry configs DSN-gated so dev builds without creds are silent no-ops, not crashes. Turbopack-deprecated disableLogger/automaticVercelMonitors dropped from withSentryConfig.
+- [Phase 01-scaffold]: Plan 01-06: posthog-js used directly (not @posthog/next) — the consent gate needs explicit init-timing control, which bare posthog-js makes trivial via one maybeInit() function.
 
 ### Pending Todos
 
@@ -91,9 +95,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-21T03:26:47.658Z
-Stopped at: Completed 01-04-phaser-mount-PLAN.md; handing off to Plan 01-05 (anchor + Cluu)
-Resume file: .planning/phases/01-scaffold/01-05-anchor-cluu-PLAN.md
+Last session: 2026-04-21T03:45:13.185Z
+Stopped at: Completed 01-06-consent-analytics-PLAN.md; PostHog gated behind consent, Sentry wired; user still needs to paste Sentry env vars into .env.local before production deploy
+Resume file: None
 
 **Pre-wired by user (2026-04-21):**
 
