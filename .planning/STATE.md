@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Plan 01-01 complete — handing off to Plan 01-02 (Supabase auth)
-last_updated: "2026-04-21T03:55:00.000Z"
-last_activity: 2026-04-21 -- Plan 01-01 (repo scaffold) complete; Supabase + Vercel pre-wired by user
+stopped_at: Completed 01-02-supabase-auth-PLAN.md; handing off to Plan 01-03 (Zustand + anonymous migration)
+last_updated: "2026-04-21T02:52:22.212Z"
+last_activity: 2026-04-21
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 8
-  completed_plans: 1
-  percent: 12.5
+  completed_plans: 2
+  percent: 25
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-20)
 ## Current Position
 
 Phase: 01 (scaffold) — EXECUTING
-Plan: 2 of 8 (01-01 complete; 01-02 next)
-Status: Executing Phase 01 — Wave 1 Plan 01-02 ready
-Last activity: 2026-04-21 -- Plan 01-01 (repo scaffold) complete; Supabase + Vercel pre-wired by user
+Plan: 3 of 8 (01-01, 01-02 complete; 01-03 next)
+Status: Ready to execute Plan 01-03 (Zustand + anonymous migration)
+Last activity: 2026-04-21 -- Plan 01-02 (Supabase auth) complete; schema + RLS + proxy.ts + magic-link flow landed, negative RLS test 4/4 green
 
-Progress: [█░░░░░░░░░] 12.5%
+Progress: [███░░░░░░░] 25%
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [█░░░░░░░░░] 12.5%
 - Trend: — (no execution data yet)
 
 *Updated after each plan completion*
+| Phase 01-scaffold P02 | 36min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,8 @@ Recent decisions affecting current work:
 - **Stack locked (design doc §8, amended 2026-04-20)**: Next.js 16.2.x + Phaser 3.90.x + Supabase + Anthropic Sonnet 4.6 / Haiku 4.5 + Upstash + Vercel. Next 14 → 16 amendment already reflected.
 - **5 coarse phases (granularity=coarse in config.json)**: lifted from ARCHITECTURE.md §"Suggested Build Order"; walking-skeleton encounter in Phase 2 is the single load-bearing deliverable.
 - **Tide Pools is the scope-flex lever**: if behind at Phase 4 midpoint, drop CONT-04 to v1.1 per design doc §12. Library export, grading reliability, and first-encounter magic are never cut.
+- [Phase 01-scaffold]: Hand-rolled Database type covers Row/Insert/Update/Relationships per table + Views/Functions; postgrest-js 2.104 GenericSchema requires these keys or mutation signatures collapse to never. Phase 2 may regenerate via supabase gen types typescript --local.
+- [Phase 01-scaffold]: D-17 grep gate: comment prose reworded to the-cached-session-helper so grep -rn getSession lib/ app/ proxy.ts returns zero matches. Teaching comments can silently violate grep gates; always check the plan's final verification step, not just task acceptance criteria.
 
 ### Pending Todos
 
@@ -80,11 +83,12 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-21T03:55:00.000Z
-Stopped at: Plan 01-01 complete — Supabase auth (Plan 01-02) next
-Resume file: .planning/phases/01-scaffold/01-02-supabase-auth-PLAN.md
+Last session: 2026-04-21T02:52:22.210Z
+Stopped at: Completed 01-02-supabase-auth-PLAN.md; handing off to Plan 01-03 (Zustand + anonymous migration)
+Resume file: .planning/phases/01-scaffold/01-03-zustand-migration-PLAN.md
 
 **Pre-wired by user (2026-04-21):**
+
 - Vercel project linked locally (`.vercel/project.json` → `prj_iUafjPILCC46QfSyQYv52lLHrU98`, team `huboneintelligence-2022`, URL https://vercel.com/huboneintelligence-2022s-projects/cluu)
 - Supabase CLI initialized + linked to remote `https://xiccqasycfzodfgbcawh.supabase.co` (`supabase/config.toml` present at repo root)
 - Supabase publishable (anon) key provided by user; service-role key not yet captured. User plans to rotate both post-launch.

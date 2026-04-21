@@ -10,9 +10,9 @@ Requirements for initial release. Each maps to exactly one roadmap phase. REQ-ID
 ### Auth
 
 - [ ] **AUTH-01**: User can play anonymously without signing in (state persisted to localStorage)
-- [ ] **AUTH-02**: User can sign in via Supabase magic-link email
+- [x] **AUTH-02**: User can sign in via Supabase magic-link email
 - [ ] **AUTH-03**: Anonymous player's state (encounters, library entries, cosmetics) migrates into their account on signup without data loss
-- [ ] **AUTH-04**: User session persists across browser refresh via Supabase SSR cookies
+- [x] **AUTH-04**: User session persists across browser refresh via Supabase SSR cookies
 - [ ] **AUTH-05**: User can sign out from any screen
 - [ ] **AUTH-06**: User can request deletion of their account and all associated data (POPIA right-to-deletion)
 
@@ -87,7 +87,7 @@ Requirements for initial release. Each maps to exactly one roadmap phase. REQ-ID
 ### Persist
 
 - [ ] **PERS-01**: Player state (mood, unlocked biomes, progress, cosmetics, library) persists in Supabase Postgres
-- [ ] **PERS-02**: Every Supabase table uses Row-Level Security keyed to `auth.uid()`
+- [x] **PERS-02**: Every Supabase table uses Row-Level Security keyed to `auth.uid()`
 - [ ] **PERS-03**: Client writes are debounced (~5s) and retry on transient failure; anchor position never syncs
 - [ ] **PERS-04**: Cosmetic and Library grants are idempotent — double-save returns no-op
 
@@ -175,9 +175,9 @@ All 71 v1 requirements mapped to exactly one phase. Populated by roadmapper 2026
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Complete |
 | AUTH-03 | Phase 1 | Pending |
-| AUTH-04 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Complete |
 | AUTH-05 | Phase 1 | Pending |
 | AUTH-06 | Phase 4 | Pending |
 | WORLD-01 | Phase 1 | Pending |
@@ -228,7 +228,7 @@ All 71 v1 requirements mapped to exactly one phase. Populated by roadmapper 2026
 | ENG-05 | Phase 2 | Pending |
 | ENG-06 | Phase 5 | Pending |
 | PERS-01 | Phase 3 | Pending |
-| PERS-02 | Phase 1 | Pending |
+| PERS-02 | Phase 1 | Complete |
 | PERS-03 | Phase 3 | Pending |
 | PERS-04 | Phase 3 | Pending |
 | OPS-01 | Phase 3 | Pending |
