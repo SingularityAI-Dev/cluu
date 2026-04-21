@@ -35,3 +35,6 @@ build/
 # vitest
 .vitest-cache/
 
+
+# claude code agent worktrees (temp, auto-cleaned)
+.claude/worktrees/
