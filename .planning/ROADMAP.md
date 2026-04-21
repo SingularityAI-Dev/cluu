@@ -40,11 +40,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Goal:** Replace Phase 1 placeholder art with production visual identity. Ship design-doc §16 single-image style guide, `lib/design/tokens.ts` named palette + spacing + radii, production Cluu Content pose (chubby 4-legged creature, 48×48, Aseprite-authored) with idle animation (breath baseline + occasional blink + occasional head_turn), production Meadow grass tile using the locked D-09 green triad, Withered Sunflower before/after encounter sprites (unblocking Phase 2's Describe encounter), and a reusable encounter-object authoring spec so Phases 2–4 inherit the art-production contract.
 **Requirements**: none (INSERTED art/quality phase — no REQ-IDs map here)
 **Depends on:** Phase 1
-**Plans:** 5 plans
+**Plans:** 2/5 plans executed
 
 Plans:
-- [ ] 01.1-01-PLAN.md — Create lib/design/tokens.ts (named palette + spacing + radii + hexToInt)
-- [ ] 01.1-02-PLAN.md — Write docs/encounter-object-authoring.md authoring spec
+- [x] 01.1-01-PLAN.md — Create lib/design/tokens.ts (named palette + spacing + radii + hexToInt)
+- [x] 01.1-02-PLAN.md — Write docs/encounter-object-authoring.md authoring spec
 - [ ] 01.1-03-PLAN.md — Human-in-the-loop art delivery (Cluu spritesheet + meadow tile + Sunflower before/after + style guide)
 - [ ] 01.1-04-PLAN.md — Wire production art into Phaser (BootScene Aseprite loader + Cluu idle animation + tokens consumed by config/MeadowScene)
 - [ ] 01.1-05-PLAN.md — Palette-audit Vitest test + sprite-fixtures exit-gate test + verification sweep
