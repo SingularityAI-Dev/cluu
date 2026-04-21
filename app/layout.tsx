@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import { PostHogProvider } from '@/lib/analytics/posthog-provider';
 import { StoreProvider } from '@/state/StoreProvider';
+import { ConsentBanner } from '@/ui/ConsentBanner';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -13,7 +15,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <StoreProvider>{children}</StoreProvider>
+        <StoreProvider>
+          <PostHogProvider>
+            {children}
+            <ConsentBanner />
+          </PostHogProvider>
+        </StoreProvider>
       </body>
     </html>
   );

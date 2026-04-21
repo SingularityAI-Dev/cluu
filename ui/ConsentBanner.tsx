@@ -37,8 +37,7 @@ export function ConsentBanner() {
   if (record !== null) return null;
 
   return (
-    <div
-      role="dialog"
+    <section
       aria-label="Analytics consent"
       style={{
         position: 'fixed',
@@ -76,6 +75,6 @@ export function ConsentBanner() {
           Decline
         </button>
       </div>
-    </div>
+    </section>
   );
 }
