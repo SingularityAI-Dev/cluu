@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-03-zustand-migration-PLAN.md; handing off to Plan 01-04 (Phaser mount)
-last_updated: "2026-04-21T03:07:43.782Z"
+stopped_at: Completed 01-04-phaser-mount-PLAN.md; handing off to Plan 01-05 (anchor + Cluu)
+last_updated: "2026-04-21T03:27:05.300Z"
 last_activity: 2026-04-21
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 8
-  completed_plans: 3
-  percent: 38
+  completed_plans: 4
+  percent: 50
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-04-20)
 ## Current Position
 
 Phase: 01 (scaffold) — EXECUTING
-Plan: 4 of 8 (01-01, 01-02, 01-03 complete; 01-04 next)
-Status: Ready to execute Plan 01-04 (Phaser mount)
-Last activity: 2026-04-21 — Plan 01-03 (Zustand + anonymous migration) complete; Store Factory + idempotent /api/migrate-anonymous landed, 17/17 new tests green, Pitfall 4 BLOCKER absorbed
+Plan: 5 of 8 (01-01, 01-02, 01-03 complete; 01-04 next)
+Status: Ready to execute
+Last activity: 2026-04-21
 
 Progress: [████░░░░░░] 38%
 
@@ -58,6 +58,7 @@ Progress: [████░░░░░░] 38%
 *Updated after each plan completion*
 | Phase 01-scaffold P02 | 36min | 3 tasks | 16 files |
 | Phase 01-scaffold P03 | 10min | 2 tasks | 13 files |
+| Phase 01-scaffold P04 | 13min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,9 @@ Recent decisions affecting current work:
 - [Phase 01-scaffold]: Store Factory (D-15) enforced — createGameStore is a function; StoreProvider uses useRef per-mount so each SSR request / browser hydration gets an independent store. Global singleton leak prevented.
 - [Phase 01-scaffold]: Pitfall 4 BLOCKER absorbed: applyAnonymousMigration reads player_state.migration_processed first, short-circuits if true. Double-invoke proven a no-op by 4-case Vitest suite + 5-case route test. Library rows never duplicate.
 - [Phase 01-scaffold]: Introduced tests/stubs/server-only.ts + vitest.config alias because Vite cannot resolve Next's virtual 'server-only' package; Next's build-time guard still fires at pnpm build.
+- [Phase 01-scaffold]: Phaser namespace import (import * as Phaser from 'phaser') mandatory — Phaser 3.90 ESM bundle has no default export and Next 16 Turbopack enforces ESM strictly. TypeScript export= still types it correctly.
+- [Phase 01-scaffold]: GameClientLoader.tsx Client shim introduced — Next 16 forbids next/dynamic({ssr:false}) in Server Components; Client wrapper preserves D-09 while satisfying the RSC rule.
+- [Phase 01-scaffold]: Pitfall 5 absorbed — useRef guard + cancelled-flag pattern in GameClient.tsx; 4 lifecycle tests prove net-alive=0 after unmount even under StrictMode.
 
 ### Pending Todos
 
@@ -87,9 +91,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-21T03:07:14.213Z
-Stopped at: Completed 01-03-zustand-migration-PLAN.md; handing off to Plan 01-04 (Phaser mount)
-Resume file: .planning/phases/01-scaffold/01-04-phaser-mount-PLAN.md
+Last session: 2026-04-21T03:26:47.658Z
+Stopped at: Completed 01-04-phaser-mount-PLAN.md; handing off to Plan 01-05 (anchor + Cluu)
+Resume file: None
 
 **Pre-wired by user (2026-04-21):**
 

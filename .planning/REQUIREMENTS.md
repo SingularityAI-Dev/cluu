@@ -18,7 +18,7 @@ Requirements for initial release. Each maps to exactly one roadmap phase. REQ-ID
 
 ### World
 
-- [ ] **WORLD-01**: Player loads `cluu.game` and sees their island within 3 seconds on broadband
+- [x] **WORLD-01**: Player loads `cluu.game` and sees their island within 3 seconds on broadband
 - [ ] **WORLD-02**: Player moves an invisible anchor via touch (tap-to-move) on mobile
 - [ ] **WORLD-03**: Player moves the anchor via keyboard (WASD + arrow keys) on desktop
 - [ ] **WORLD-04**: Camera follows the anchor smoothly across tile-based scenes
@@ -180,7 +180,7 @@ All 71 v1 requirements mapped to exactly one phase. Populated by roadmapper 2026
 | AUTH-04 | Phase 1 | Complete |
 | AUTH-05 | Phase 1 | Pending |
 | AUTH-06 | Phase 4 | Pending |
-| WORLD-01 | Phase 1 | Pending |
+| WORLD-01 | Phase 1 | Complete |
 | WORLD-02 | Phase 1 | Pending |
 | WORLD-03 | Phase 1 | Pending |
 | WORLD-04 | Phase 1 | Pending |
