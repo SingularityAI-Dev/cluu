@@ -2,6 +2,7 @@
 // D-14 no-op-but-real proof: setMood / setEquipped exist and behave correctly.
 // D-13 proof: exactly 5 child sprites in z-order (back, base, bodyPattern, head, eyes).
 // D-11 proof: seekTarget respects the 24px STOP_RADIUS.
+import type * as Phaser from 'phaser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { STOP_RADIUS, seekTarget } from '../systems/follow';
 
@@ -19,18 +20,15 @@ vi.mock('phaser', () => {
     }
   }
   class FakeContainer {
-    // biome-ignore lint/suspicious/noExplicitAny: fake-scene container holds heterogenous children
-    private children: any[] = [];
+    private children: unknown[] = [];
     length = 0;
     body: unknown = null;
-    // biome-ignore lint/suspicious/noExplicitAny: fake scene is a loose stub
     constructor(
-      public scene: any,
+      public scene: unknown,
       public x: number,
       public y: number,
     ) {}
-    // biome-ignore lint/suspicious/noExplicitAny: mirrors Phaser.GameObjects.Container.add signature
-    add(items: any | any[]): this {
+    add(items: unknown | unknown[]): this {
       const arr = Array.isArray(items) ? items : [items];
       this.children.push(...arr);
       this.length = this.children.length;
@@ -98,6 +96,11 @@ function makeFakeScene(): FakeScene {
   };
 }
 
+/** Cast a FakeScene to Phaser.Scene shape for the Cluu constructor. */
+function asPhaserScene(s: FakeScene): Phaser.Scene {
+  return s as unknown as Phaser.Scene;
+}
+
 // Lazy-import Cluu AFTER the Phaser mock is installed via vi.mock hoisting.
 async function loadCluu() {
   const mod = await import('./Cluu');
@@ -112,16 +115,14 @@ describe('Cluu entity — D-13 compositing pipeline + D-14 API surface', () => {
   it('constructs with exactly 5 child sprites (back, base, bodyPattern, head, eyes)', async () => {
     const Cluu = await loadCluu();
     const scene = makeFakeScene();
-    // biome-ignore lint/suspicious/noExplicitAny: fake-scene shape differs from Phaser.Scene
-    const cluu = new Cluu(scene as any, 0, 0);
+    const cluu = new Cluu(asPhaserScene(scene), 0, 0);
     expect(cluu.getChildCount()).toBe(5);
   });
 
   it('seeds slot textures in z-order: back, base, bodyPattern, head, eyes', async () => {
     const Cluu = await loadCluu();
     const scene = makeFakeScene();
-    // biome-ignore lint/suspicious/noExplicitAny
-    new Cluu(scene as any, 0, 0);
+    new Cluu(asPhaserScene(scene), 0, 0);
     expect(scene.sprites.map((s) => s.texture.key)).toEqual([
       'cluu_back',
       'cluu_base',
@@ -134,8 +135,7 @@ describe('Cluu entity — D-13 compositing pipeline + D-14 API surface', () => {
   it('setMood accepts all four moods without throwing (D-14 no-op-but-real)', async () => {
     const Cluu = await loadCluu();
     const scene = makeFakeScene();
-    // biome-ignore lint/suspicious/noExplicitAny
-    const cluu = new Cluu(scene as any, 0, 0);
+    const cluu = new Cluu(asPhaserScene(scene), 0, 0);
     for (const m of ['stoked', 'content', 'sleepy', 'blue'] as const) {
       expect(() => cluu.setMood(m)).not.toThrow();
       expect(cluu.getMood()).toBe(m);
@@ -145,8 +145,7 @@ describe('Cluu entity — D-13 compositing pipeline + D-14 API surface', () => {
   it('setEquipped swaps texture on the targeted slot (D-13 pipeline is real)', async () => {
     const Cluu = await loadCluu();
     const scene = makeFakeScene();
-    // biome-ignore lint/suspicious/noExplicitAny
-    const cluu = new Cluu(scene as any, 0, 0);
+    const cluu = new Cluu(asPhaserScene(scene), 0, 0);
     cluu.setEquipped('head', 'petal_pin');
     // z-order: [back=0, base=1, bodyPattern=2, head=3, eyes=4]
     expect(scene.sprites[3].texture.key).toBe('petal_pin');
@@ -155,8 +154,7 @@ describe('Cluu entity — D-13 compositing pipeline + D-14 API surface', () => {
   it('setEquipped(slot, null) resets slot to blank placeholder', async () => {
     const Cluu = await loadCluu();
     const scene = makeFakeScene();
-    // biome-ignore lint/suspicious/noExplicitAny
-    const cluu = new Cluu(scene as any, 0, 0);
+    const cluu = new Cluu(asPhaserScene(scene), 0, 0);
     cluu.setEquipped('body', 'stripes');
     cluu.setEquipped('body', null);
     // body (bodyPattern) is index 2 in z-order
@@ -166,8 +164,7 @@ describe('Cluu entity — D-13 compositing pipeline + D-14 API surface', () => {
   it('setEquipped targets each slot independently', async () => {
     const Cluu = await loadCluu();
     const scene = makeFakeScene();
-    // biome-ignore lint/suspicious/noExplicitAny
-    const cluu = new Cluu(scene as any, 0, 0);
+    const cluu = new Cluu(asPhaserScene(scene), 0, 0);
     cluu.setEquipped('back', 'back_bag');
     cluu.setEquipped('head', 'hat_a');
     cluu.setEquipped('eyes', 'eyes_wink');
