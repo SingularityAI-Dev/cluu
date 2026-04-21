@@ -19,16 +19,16 @@ Requirements for initial release. Each maps to exactly one roadmap phase. REQ-ID
 ### World
 
 - [x] **WORLD-01**: Player loads `cluu.game` and sees their island within 3 seconds on broadband
-- [ ] **WORLD-02**: Player moves an invisible anchor via touch (tap-to-move) on mobile
-- [ ] **WORLD-03**: Player moves the anchor via keyboard (WASD + arrow keys) on desktop
-- [ ] **WORLD-04**: Camera follows the anchor smoothly across tile-based scenes
+- [x] **WORLD-02**: Player moves an invisible anchor via touch (tap-to-move) on mobile
+- [x] **WORLD-03**: Player moves the anchor via keyboard (WASD + arrow keys) on desktop
+- [x] **WORLD-04**: Camera follows the anchor smoothly across tile-based scenes
 - [ ] **WORLD-05**: Starter Meadow biome is unlocked immediately; Village, Workshop, Tide Pools, and Library unlock in order after prior biome's arc completes
 - [ ] **WORLD-06**: Player can pause the game and resume without losing progress
 - [ ] **WORLD-07**: Visible encounter markers indicate interactable objects (withered plant, broken chime, waiting NPC, workbench, tide pool)
 
 ### Cluu
 
-- [ ] **CLUU-01**: Cluu follows the player anchor like a pet (never directly controlled)
+- [x] **CLUU-01**: Cluu follows the player anchor like a pet (never directly controlled)
 - [ ] **CLUU-02**: Cluu renders with four passive moods — Stoked, Content, Sleepy, Blue
 - [ ] **CLUU-03**: Cluu renders with two in-encounter states — Curious (on fail), Sparkling (on flair)
 - [ ] **CLUU-04**: Cluu mood decays passively with absence (Stoked → Content next day → Sleepy at 3 days → Blue at 7 days)
@@ -181,13 +181,13 @@ All 71 v1 requirements mapped to exactly one phase. Populated by roadmapper 2026
 | AUTH-05 | Phase 1 | Pending |
 | AUTH-06 | Phase 4 | Pending |
 | WORLD-01 | Phase 1 | Complete |
-| WORLD-02 | Phase 1 | Pending |
-| WORLD-03 | Phase 1 | Pending |
-| WORLD-04 | Phase 1 | Pending |
+| WORLD-02 | Phase 1 | Complete |
+| WORLD-03 | Phase 1 | Complete |
+| WORLD-04 | Phase 1 | Complete |
 | WORLD-05 | Phase 4 | Pending |
 | WORLD-06 | Phase 3 | Pending |
 | WORLD-07 | Phase 3 | Pending |
-| CLUU-01 | Phase 1 | Pending |
+| CLUU-01 | Phase 1 | Complete |
 | CLUU-02 | Phase 3 | Pending |
 | CLUU-03 | Phase 3 | Pending |
 | CLUU-04 | Phase 3 | Pending |

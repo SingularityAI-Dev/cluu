@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-06-consent-analytics-PLAN.md; PostHog gated behind consent, Sentry wired; user still needs to paste Sentry env vars into .env.local before production deploy
-last_updated: "2026-04-21T03:45:13.188Z"
+stopped_at: Completed 01-05-anchor-cluu-PLAN.md; 01-08 (cross-browser smoke) is the only remaining plan in Phase 1
+last_updated: "2026-04-21T03:46:47.878Z"
 last_activity: 2026-04-21
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 8
-  completed_plans: 5
-  percent: 63
+  completed_plans: 6
+  percent: 75
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-20)
 ## Current Position
 
 Phase: 01 (scaffold) — EXECUTING
-Plan: 6 of 8 (01-01, 01-02, 01-03, 01-04 complete; 01-05 next)
+Plan: 7 of 8 (01-01, 01-02, 01-03, 01-04 complete; 01-05 next)
 Status: Ready to execute
 Last activity: 2026-04-21
 
@@ -60,6 +60,7 @@ Progress: [█████░░░░░] 50%
 | Phase 01-scaffold P03 | 10min | 2 tasks | 13 files |
 | Phase 01-scaffold P04 | 13min | 2 tasks | 13 files |
 | Phase 01-scaffold P06 | 10min | 2 tasks | 17 files |
+| Phase 01-scaffold P05 | 11min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,10 @@ Recent decisions affecting current work:
 - [Phase 01-scaffold]: Plan 01-06: TrackEvent union in lib/analytics/track.ts is the structural enforcement of 'never log raw prompts to analytics' — no variant has free-text fields, so privacy leaks are compile errors.
 - [Phase 01-scaffold]: Plan 01-06: Sentry configs DSN-gated so dev builds without creds are silent no-ops, not crashes. Turbopack-deprecated disableLogger/automaticVercelMonitors dropped from withSentryConfig.
 - [Phase 01-scaffold]: Plan 01-06: posthog-js used directly (not @posthog/next) — the consent gate needs explicit init-timing control, which bare posthog-js makes trivial via one maybeInit() function.
+- [Phase 01-scaffold]: D-13 Cluu z-order decided (back < base < bodyPattern < head < eyes) so a future translucent hat never occludes the Cluu's gaze.
+- [Phase 01-scaffold]: D-14 default mood 'content' — arrived, not stoked, not sleepy. setMood/setEquipped APIs shipped as no-op-but-real so Phase 3 cosmetic swaps are texture changes, not refactors.
+- [Phase 01-scaffold]: MeadowScene field renamed this.inputSystem (not this.input) to avoid shadowing Phaser.Scene.input (the InputPlugin) — silent shadowing would break keyboard wiring.
+- [Phase 01-scaffold]: Pure-function seek in systems/follow.ts with STOP_RADIUS=24 exported — 5 of the 11 Cluu tests import it directly with no Phaser mock required (D-11 literal).
 
 ### Pending Todos
 
@@ -95,8 +100,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-21T03:45:13.185Z
-Stopped at: Completed 01-06-consent-analytics-PLAN.md; PostHog gated behind consent, Sentry wired; user still needs to paste Sentry env vars into .env.local before production deploy
+Last session: 2026-04-21T03:46:47.875Z
+Stopped at: Completed 01-05-anchor-cluu-PLAN.md; 01-08 (cross-browser smoke) is the only remaining plan in Phase 1
 Resume file: None
 
 **Pre-wired by user (2026-04-21):**
