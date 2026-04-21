@@ -88,7 +88,7 @@ This plan's final artifact is ONE atomic commit (per user direction):
 
 1. **Task 1: MANUAL-SMOKE.md written** + STATE.md status updated + this SUMMARY — combined in the single phase-metadata commit below.
 
-**Plan metadata commit:** `a29398a` (docs(01-08): MANUAL-SMOKE checklist + preflight evidence — awaiting user browser run)
+**Plan metadata commit:** `54858ad` (docs(01-08): MANUAL-SMOKE checklist + preflight evidence — awaiting user browser run)
 
 _Note: per the user's explicit direction, this plan does not produce task-level commits — the manual-gate nature means the work is a single document hand-off._
 
@@ -182,7 +182,7 @@ Phase 2 (walking-skeleton — first encounter end-to-end) can begin as soon as O
 
 - `.planning/phases/01-scaffold/MANUAL-SMOKE.md` — FOUND on disk
 - `.planning/phases/01-scaffold/01-08-SUMMARY.md` — FOUND on disk
-- Commit `a29398a` — FOUND in git log (`docs(01-08): MANUAL-SMOKE checklist + preflight evidence — awaiting user browser run`)
+- Commit `54858ad` — FOUND in git log (`docs(01-08): MANUAL-SMOKE checklist + preflight evidence — awaiting user browser run`)
 - `.planning/STATE.md` frontmatter: `status: awaiting-manual-smoke`, `completed_plans: 7`, `percent: 87.5` (gate-preserving, not falsely advanced)
 - REQUIREMENTS.md OPS-04: still `- [ ]` (correctly open)
 
