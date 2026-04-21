@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: milestone
-status: executing
-stopped_at: Completed 01-07-signout-persistence-PLAN.md; 01-08 (cross-browser smoke) is the only remaining plan in Phase 1
-last_updated: "2026-04-21T03:52:00Z"
+status: awaiting-manual-smoke
+stopped_at: 01-08 MANUAL-SMOKE.md + 01-08-SUMMARY.md committed; green-chain preflight captured at bfdbc24 (typecheck 0, test 65/4-skip, lint 0-err/6-warn, build 4.0s 7 routes, getSession grep = 0, dev HTTP 200). OPS-04 remains open. Human runs the 10-step smoke across 5 browsers, fills the matrix in MANUAL-SMOKE.md, then triggers closeout.
+last_updated: "2026-04-21T04:03:43Z"
 last_activity: 2026-04-21
 progress:
   total_phases: 5
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-04-20)
 
 ## Current Position
 
-Phase: 01 (scaffold) — EXECUTING
-Plan: 8 of 8 (01-01, 01-02, 01-03, 01-04, 01-05, 01-06, 01-07 complete; 01-08 is next and last)
-Status: Ready to execute
+Phase: 01 (scaffold) — AWAITING MANUAL SMOKE
+Plan: 8 of 8 (01-01..01-07 complete; 01-08 checklist + preflight shipped; waiting on human cross-browser smoke to close OPS-04)
+Status: Awaiting human execution of `.planning/phases/01-scaffold/MANUAL-SMOKE.md`
 Last activity: 2026-04-21
 
 Progress: [█████████░] 87.5%
@@ -92,6 +92,7 @@ Recent decisions affecting current work:
 - [Phase 01-scaffold]: Plan 01-07: Migration single-fire guard is three refs (wasAnonymous + migrationInFlight + migrationCompleted) not store state. Refs avoid re-renders and always read latest inside the onAuthStateChange callback. Vitest `does not double-POST within a session` proves defensive re-fired USER_UPDATED events are ignored.
 - [Phase 01-scaffold]: Plan 01-07: AuthAwareShell is render-through synchronous (no waiting state) — Phase 1 has no auth-gated UI, and delaying the canvas would trade a silent bootstrap for a visible blank-screen regression. Phase 2 encounters add their own guards.
 - [Phase 01-scaffold]: Plan 01-07: GameClient.test.tsx mocks ./AuthAwareShell + @/app/auth/actions so the four Pitfall-5 lifecycle tests stay pure-lifecycle. Rule 1 auto-fix when prod-wrap pulled StoreProvider + Supabase plumbing into the render graph.
+- [Phase 01-scaffold]: Plan 01-08: shipped MANUAL-SMOKE.md (human-gated, autonomous:false) with 10-step protocol + 5-browser matrix + green-chain preflight pinned at bfdbc24. OPS-04 stays open until human runs cross-browser smoke; progress held at 7/8 (87.5%).
 
 ### Pending Todos
 
@@ -105,9 +106,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-21T03:52:00Z
-Stopped at: Completed 01-07-signout-persistence-PLAN.md; 01-08 (cross-browser smoke) is the only remaining plan in Phase 1
-Resume file: 01-08-cross-browser-smoke-PLAN.md
+Last session: 2026-04-21T04:01:27Z
+Stopped at: 01-08 MANUAL-SMOKE.md + 01-08-SUMMARY.md committed; green-chain preflight captured at bfdbc24 (typecheck 0, test 65/4-skip, lint 0-err/6-warn, build 4.0s 7 routes, getSession grep = 0, dev HTTP 200). OPS-04 remains open. Human runs the 10-step smoke across 5 browsers, fills the matrix in MANUAL-SMOKE.md, then triggers closeout.
+Resume file: .planning/phases/01-scaffold/MANUAL-SMOKE.md (human-filled) → then re-run `/gsd-execute-phase` or manual closeout to mark OPS-04 complete + flip ROADMAP + bump STATE to 8/8
 
 **Pre-wired by user (2026-04-21):**
 
