@@ -11,6 +11,7 @@ export default defineConfig({
     environment: 'jsdom', // Plans 03/04/06/07 test components + localStorage
     setupFiles: ['./vitest.setup.ts'],
     include: ['**/*.{test,spec}.{ts,tsx}', 'tests/**/*.{test,spec}.{ts,tsx}'],
+    exclude: ['node_modules/**', '.claude/**', '.next/**'],
     testTimeout: 15_000, // RLS test hits a local Postgres; 15s headroom
     // No `projects` key — single-project is correct for Phase 1.
     // No coverage threshold — Phase 5 will add one.
