@@ -38,3 +38,7 @@ build/
 
 # claude code agent worktrees (temp, auto-cleaned)
 .claude/worktrees/
+
+# local runtime state
+.hermes/
+supabase/
