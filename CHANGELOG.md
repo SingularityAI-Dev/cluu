@@ -2,6 +2,7 @@
 
 > Last 20 changes. Full history in git.
 
+- 2026-07-08: NIM timeout raised to 150s; free endpoint queue drifted past the 60s cap, causing silent local-grader fallback (caught via tokensUsed magnitude)
 - 2026-07-08: hard pivot — arcade game replaces the Phaser/Next game; old stack deleted (71 files), repo is now static game at `/` + NIM grading API
 - 2026-07-08: NVIDIA NIM grading adapter (z-ai/glm-5.2) with local fallback; verified live on production
 - 2026-07-08: standalone CLUU arcade game added and deployed public on Vercel

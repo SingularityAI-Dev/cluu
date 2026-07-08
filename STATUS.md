@@ -14,4 +14,4 @@ Hard pivot (user-directed, 2026-07-08): the standalone CLUU arcade game replaced
 - Wire the arcade game's encounters to `/api/encounter/attempt` so player-written prompts get live GLM-5.2 grading (the Library thesis: real prompts, real grades)
 - Author more `.logic.md` encounter contracts beyond meadow_withered_sunflower
 - Revisit the "Anthropic only in v1" lock (currently user-overridden for testing) before any launch
-- Latency: free NIM endpoint runs 30-45s per grade; add the identical-prompt cache from the design doc if it hurts playtests
+- Latency: free NIM endpoint queue drifts (30s to 70s+ observed); adapter timeout 150s, route maxDuration 180s. Add the identical-prompt cache from the design doc if it hurts playtests. A grade with tokensUsed under ~100 means the local fallback answered, not NIM
