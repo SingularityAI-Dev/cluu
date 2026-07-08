@@ -11,6 +11,9 @@ import { loadEncounterContract } from '@/lib/encounters/loadContract';
 import { gradeEncounterAttemptWithNim, nimGraderEnabled } from '@/lib/encounters/nimGrade';
 
 export const runtime = 'nodejs';
+// NIM grading can queue well past a minute on the free endpoint; keep the
+// function alive long enough for the 150s adapter timeout plus fallback.
+export const maxDuration = 180;
 
 const AttemptSchema = z.object({
   encounterId: z.string().min(1),

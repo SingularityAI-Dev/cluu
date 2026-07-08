@@ -10,7 +10,9 @@ import type { EncounterContract } from './types';
 
 const NIM_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
 const DEFAULT_NIM_MODEL = 'z-ai/glm-5.2';
-const REQUEST_TIMEOUT_MS = 60_000;
+// Free build.nvidia.com endpoints queue; observed latency drifts from ~30s to 60s+.
+// Fluid Compute allows 300s, so give NIM generous headroom before falling back locally.
+const REQUEST_TIMEOUT_MS = 150_000;
 const FLAIR_ONLY_ASSERTIONS = new Set(['EVOCATIVE']);
 
 const NimGradeSchema = z.object({
