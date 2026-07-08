@@ -26,17 +26,18 @@ export function AuthAwareShell({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (cancelled) return;
-      if (!user) {
-        // First visit — create the anonymous session. If the call fails
-        // (rate-limit, network), we still render; Zustand persist gives a
-        // local-only experience and the next visit can retry.
-        await supabase.auth.signInAnonymously().catch(() => {
-          /* non-fatal — see note above */
-        });
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (cancelled) return;
+        if (!user) {
+          await supabase.auth.signInAnonymously().catch(() => {
+            /* non-fatal — see note above */
+          });
+        }
+      } catch {
+        // Supabase can be unreachable locally. Phase 1 gameplay remains local-only.
       }
     })();
 

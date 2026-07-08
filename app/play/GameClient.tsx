@@ -9,7 +9,10 @@
 'use client';
 import { useEffect, useRef } from 'react';
 import type { GameInstance } from '@/game';
+import { bus } from '@/game/bridge/EventBus';
+import { useGameStore } from '@/state/StoreProvider';
 import { SettingsMenu } from '@/ui/SettingsMenu';
+import { EncounterPromptModal } from '@/ui/EncounterPromptModal';
 import { AuthAwareShell } from './AuthAwareShell';
 
 interface GameClientProps {
@@ -20,6 +23,7 @@ interface GameClientProps {
 export default function GameClient(_props: GameClientProps) {
   const parentRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<GameInstance | null>(null);
+  const openEncounter = useGameStore((state) => state.openEncounter);
 
   useEffect(() => {
     if (!parentRef.current) return;
@@ -49,14 +53,51 @@ export default function GameClient(_props: GameClientProps) {
     };
   }, []);
 
+  useEffect(() => {
+    const handleOpen = (event: { encounterId: string }) => openEncounter(event.encounterId);
+    bus.on('encounter:open', handleOpen);
+    return () => {
+      bus.off('encounter:open', handleOpen);
+    };
+  }, [openEncounter]);
+
   return (
     <AuthAwareShell>
       <SettingsMenu />
-      <div
-        ref={parentRef}
-        id="phaser-parent"
-        style={{ width: '100%', maxWidth: 768, margin: '0 auto', aspectRatio: '4 / 3' }}
+      <EncounterPromptModal
+        onResolved={(grade) =>
+          bus.emit('encounter:resolved', {
+            encounterId: 'meadow_withered_sunflower',
+            spriteKey: grade === 'flair' ? 'encounter_meadow_sunflower_revived' : 'encounter_meadow_sunflower_revived',
+          })
+        }
       />
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px',
+          transform: 'translateX(-96px)',
+        }}
+      >
+        <div
+          ref={parentRef}
+          id="phaser-parent"
+          style={{
+            position: 'relative',
+            overflow: 'hidden',
+            width: '960px',
+            maxWidth: 'calc(100vw - 32px)',
+            aspectRatio: '16 / 9',
+            borderRadius: 24,
+            background: 'rgb(135, 184, 120)',
+            boxShadow: '0 24px 70px rgba(45, 42, 38, 0.18)',
+          }}
+        />
+      </div>
     </AuthAwareShell>
   );
 }

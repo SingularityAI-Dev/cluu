@@ -15,7 +15,16 @@ export default async function PlayPage() {
   } = await supabase.auth.getUser();
 
   return (
-    <main style={{ padding: '1rem 0' }}>
+    <main
+      style={{
+        margin: 0,
+        minHeight: '100vh',
+        width: '100vw',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}
+    >
       <GameClientLoader userId={user?.id ?? null} isAnonymous={user?.is_anonymous ?? true} />
     </main>
   );

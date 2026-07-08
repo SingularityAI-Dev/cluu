@@ -74,7 +74,17 @@ vi.mock('phaser', () => ({
   ...PhaserStub,
 }));
 
+import { createGameStore } from '@/state/gameStore';
+import { StoreProvider } from '@/state/StoreProvider';
 import GameClient from './GameClient';
+
+function renderGameClient() {
+  return render(
+    <StoreProvider initialState={createGameStore().getState()}>
+      <GameClient userId={null} isAnonymous={true} />
+    </StoreProvider>,
+  );
+}
 
 describe('GameClient — Pitfall 5 lifecycle', () => {
   beforeEach(() => {
@@ -87,7 +97,7 @@ describe('GameClient — Pitfall 5 lifecycle', () => {
   });
 
   it('creates exactly one Phaser.Game on mount (no StrictMode)', async () => {
-    const { unmount } = render(<GameClient userId={null} isAnonymous={true} />);
+    const { unmount } = renderGameClient();
     // Dynamic import resolves asynchronously.
     await new Promise((r) => setTimeout(r, 50));
     expect(createGameSpy).toHaveBeenCalledTimes(1);
@@ -95,7 +105,7 @@ describe('GameClient — Pitfall 5 lifecycle', () => {
   });
 
   it('calls destroy() on unmount', async () => {
-    const { unmount } = render(<GameClient userId={null} isAnonymous={true} />);
+    const { unmount } = renderGameClient();
     await new Promise((r) => setTimeout(r, 50));
     unmount();
     expect(destroySpy).toHaveBeenCalledTimes(1);
@@ -104,7 +114,9 @@ describe('GameClient — Pitfall 5 lifecycle', () => {
   it('StrictMode double-invoke does not leak: net alive instances = 0 after unmount', async () => {
     const { unmount } = render(
       <StrictMode>
-        <GameClient userId={null} isAnonymous={true} />
+        <StoreProvider initialState={createGameStore().getState()}>
+          <GameClient userId={null} isAnonymous={true} />
+        </StoreProvider>
       </StrictMode>,
     );
     await new Promise((r) => setTimeout(r, 80));
@@ -118,7 +130,7 @@ describe('GameClient — Pitfall 5 lifecycle', () => {
   });
 
   it('ref no longer holds a game instance after unmount', async () => {
-    const { unmount } = render(<GameClient userId={null} isAnonymous={true} />);
+    const { unmount } = renderGameClient();
     await new Promise((r) => setTimeout(r, 50));
     unmount();
     // After unmount, a second destroy must NOT fire because the ref was cleared.

@@ -31,6 +31,6 @@
     }
   },
   "files": {
-    "ignore": [".next", "build", "coverage", "node_modules", ".pnpm-store", ".vercel"]
+    "ignore": [".next", "build", "coverage", "node_modules", ".pnpm-store", ".vercel", ".claude/**"]
   }
 }

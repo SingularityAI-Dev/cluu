@@ -1,0 +1,16 @@
+{
+  "format": "phase-011-source-manifest",
+  "canvas": {
+    "w": 48,
+    "h": 48
+  },
+  "states": [
+    "withered",
+    "revived"
+  ],
+  "exported": [
+    "public/sprites/encounter_meadow_sunflower_withered.png",
+    "public/sprites/encounter_meadow_sunflower_revived.png"
+  ],
+  "note": "Generated source manifest. Replace with a real Aseprite .ase document when authoring in Aseprite."
+}

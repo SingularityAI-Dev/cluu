@@ -6,7 +6,7 @@
 // Consumers get the store via useGameStore() from state/StoreProvider.tsx.
 import { createStore, type StoreApi } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { Anchor, CluuCosmetics, CluuMood, IslandProgress } from './types';
+import type { Anchor, CluuCosmetics, CluuMood, EncounterResult, IslandProgress } from './types';
 
 export const STORAGE_KEY = 'cluu-game-v1';
 
@@ -16,6 +16,8 @@ export interface GameState {
   cosmetics: CluuCosmetics;
   unlockedBiomes: string[];
   islandProgress: IslandProgress;
+  currentEncounterId: string | null;
+  encounterResult: EncounterResult | null;
   /** UUID generated on first init; sent with /api/migrate-anonymous (Pitfall 4). */
   migrationIdempotencyKey: string;
 }
@@ -24,6 +26,9 @@ export interface GameActions {
   setAnchor: (anchor: Anchor) => void;
   setMood: (mood: CluuMood) => void;
   setEquipped: (slot: keyof CluuCosmetics, id: string | null) => void;
+  openEncounter: (encounterId: string) => void;
+  closeEncounter: () => void;
+  setEncounterResult: (result: EncounterResult) => void;
   hydrate: (partial: Partial<GameState>) => void;
   reset: () => void;
 }
@@ -36,6 +41,8 @@ export const DEFAULT_STATE: GameState = {
   cosmetics: { head: null, body: null, back: null, eyes: null },
   unlockedBiomes: ['meadow'],
   islandProgress: {},
+  currentEncounterId: null,
+  encounterResult: null,
   migrationIdempotencyKey: '', // populated in createGameStore if absent
 };
 
@@ -61,6 +68,9 @@ export function createGameStore(initState: Partial<GameState> = {}): GameStoreAp
         setMood: (mood) => set({ mood }),
         setEquipped: (slot, id) =>
           set((s) => ({ cosmetics: { ...s.cosmetics, [slot]: id } })),
+        openEncounter: (encounterId) => set({ currentEncounterId: encounterId, encounterResult: null }),
+        closeEncounter: () => set({ currentEncounterId: null, encounterResult: null }),
+        setEncounterResult: (result) => set({ encounterResult: result }),
         hydrate: (partial) => set((s) => ({ ...s, ...partial })),
         reset: () => set({ ...DEFAULT_STATE, migrationIdempotencyKey: generateKey() }),
       }),
