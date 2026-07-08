@@ -8,6 +8,7 @@ import { z } from 'zod';
 import type { EncounterContract } from '@/lib/encounters/types';
 import { gradeEncounterAttempt } from '@/lib/encounters/grade';
 import { loadEncounterContract } from '@/lib/encounters/loadContract';
+import { gradeEncounterAttemptWithNim, nimGraderEnabled } from '@/lib/encounters/nimGrade';
 
 export const runtime = 'nodejs';
 
@@ -45,11 +46,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'encounter_not_found' }, { status: 404 });
   }
 
-  const grade = await gradeEncounterAttempt({
-    contract,
-    userPrompt,
-    generatedResponse,
-  });
+  let grade: Awaited<ReturnType<typeof gradeEncounterAttempt>>;
+  if (nimGraderEnabled()) {
+    try {
+      grade = await gradeEncounterAttemptWithNim({ contract, userPrompt });
+    } catch (error) {
+      console.error('NIM grader failed, falling back to local grader', error);
+      grade = await gradeEncounterAttempt({ contract, userPrompt, generatedResponse });
+    }
+  } else {
+    grade = await gradeEncounterAttempt({ contract, userPrompt, generatedResponse });
+  }
 
   return NextResponse.json({
     encounter: {
