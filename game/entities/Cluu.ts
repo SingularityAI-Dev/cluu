@@ -16,6 +16,35 @@ const BLANK_TEXTURES: Record<CosmeticSlot, string> = {
   eyes: 'cluu_eyes',
 };
 
+type AnimationSprite = Phaser.GameObjects.Sprite & {
+  anims?: {
+    get?: (key: string) => unknown;
+    play?: (key: string) => void;
+  };
+};
+
+function hasAnimation(sprite: AnimationSprite, key: string): boolean {
+  try {
+    return Boolean(sprite.anims?.get?.(key));
+  } catch {
+    return false;
+  }
+}
+
+function playAnimation(sprite: AnimationSprite, key: string): boolean {
+  if (!hasAnimation(sprite, key)) return false;
+  try {
+    sprite.anims?.play?.(key);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function randomDelay(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 export class Cluu extends Phaser.GameObjects.Container {
   private base: Phaser.GameObjects.Sprite;
   private bodyPattern: Phaser.GameObjects.Sprite;
@@ -28,10 +57,14 @@ export class Cluu extends Phaser.GameObjects.Container {
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y);
 
-    // z-order (back to front): back accessory, base body, body pattern, head, eyes.
-    // Even though slots are blank in Phase 1, the layer order is correct for Phase 3.
+    // z-order (back to front): back accessory, animated content body, body pattern, head, eyes.
+    // Phase 1 uses the animated Aseprite content pose as the base; D-13 slots remain
+    // real so Phase 3 cosmetics can drop in via texture swaps.
     this.back = scene.add.sprite(0, 0, BLANK_TEXTURES.back);
-    this.base = scene.add.sprite(0, 0, 'cluu_base');
+    this.base = scene.add.sprite(0, 0, 'cluu_content', '0.png');
+    this.base.setDisplaySize?.(48, 48);
+    this.base.setFrame?.('0.png');
+    playAnimation(this.base, 'breath');
     this.bodyPattern = scene.add.sprite(0, 0, BLANK_TEXTURES.body);
     this.head = scene.add.sprite(0, 0, BLANK_TEXTURES.head);
     this.eyes = scene.add.sprite(0, 0, BLANK_TEXTURES.eyes);
@@ -43,6 +76,32 @@ export class Cluu extends Phaser.GameObjects.Container {
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setCollideWorldBounds(true); // D-11 world-bounds collision
     body.setSize(40, 40); // slightly smaller than 48 for nicer collision feel
+
+    playAnimation(this.base, 'breath');
+    this.scheduleBlink(scene);
+    this.scheduleHeadTurn(scene);
+  }
+
+  private scheduleBlink(scene: Phaser.Scene): void {
+    const delay = randomDelay(5_000, 8_000);
+    scene.time.delayedCall(delay, () => {
+      this.base.once('animationcomplete-blink', () => {
+        playAnimation(this.base, 'breath');
+      });
+      if (!playAnimation(this.base, 'blink')) return;
+      this.scheduleBlink(scene);
+    });
+  }
+
+  private scheduleHeadTurn(scene: Phaser.Scene): void {
+    const delay = randomDelay(20_000, 40_000);
+    scene.time.delayedCall(delay, () => {
+      this.base.once('animationcomplete-head_turn', () => {
+        playAnimation(this.base, 'breath');
+      });
+      if (!playAnimation(this.base, 'head_turn')) return;
+      this.scheduleHeadTurn(scene);
+    });
   }
 
   /** Follow an anchor point each tick. Constant speed seek; stops within STOP_RADIUS. */

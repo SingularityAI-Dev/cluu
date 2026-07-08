@@ -11,11 +11,31 @@ import { STOP_RADIUS, seekTarget } from '../systems/follow';
 vi.mock('phaser', () => {
   class FakeSprite {
     texture = { key: '' };
-    constructor(_s: unknown, _x: number, _y: number, key: string) {
+    frame: string | undefined;
+    anims = {
+      play() {
+        return undefined;
+      },
+    };
+    constructor(_s: unknown, _x: number, _y: number, key: string, frame?: string) {
       this.texture.key = key;
+      this.frame = frame;
     }
     setTexture(key: string): this {
       this.texture.key = key;
+      return this;
+    }
+    setFrame(frame: string): this {
+      this.frame = frame;
+      return this;
+    }
+    setDisplaySize(): this {
+      return this;
+    }
+    once(_event: string, _callback: () => void): this {
+      return this;
+    }
+    play(): this {
       return this;
     }
   }
@@ -42,12 +62,24 @@ vi.mock('phaser', () => {
   return { default: PhaserStub, ...PhaserStub, __esModule: true };
 });
 
-type FakeSpriteShape = { texture: { key: string }; setTexture: (k: string) => FakeSpriteShape };
+type FakeSpriteShape = {
+  texture: { key: string };
+  frame?: string;
+  setTexture: (k: string) => FakeSpriteShape;
+  setFrame: (f: string) => FakeSpriteShape;
+  setDisplaySize: () => FakeSpriteShape;
+  anims: { play: (key: string) => void };
+  once: (event: string, callback: () => void) => FakeSpriteShape;
+  play: () => FakeSpriteShape;
+};
 type FakeScene = {
   sprites: FakeSpriteShape[];
   add: {
-    sprite: (x: number, y: number, key: string) => FakeSpriteShape;
+    sprite: (x: number, y: number, key: string, frame?: string) => FakeSpriteShape;
     existing: (o: unknown) => void;
+  };
+  time: {
+    delayedCall: (delay: number, callback: () => void) => void;
   };
   physics: {
     add: {
@@ -61,11 +93,30 @@ function makeFakeScene(): FakeScene {
   return {
     sprites,
     add: {
-      sprite(_x: number, _y: number, key: string): FakeSpriteShape {
+      sprite(_x: number, _y: number, key: string, frame?: string): FakeSpriteShape {
         const s: FakeSpriteShape = {
           texture: { key },
+          frame,
           setTexture(k: string) {
             this.texture.key = k;
+            return this;
+          },
+          setFrame(f: string) {
+            this.frame = f;
+            return this;
+          },
+          setDisplaySize() {
+            return this;
+          },
+          anims: {
+            play() {
+              return undefined;
+            },
+          },
+          once() {
+            return this;
+          },
+          play() {
             return this;
           },
         };
@@ -74,6 +125,11 @@ function makeFakeScene(): FakeScene {
       },
       existing(_o: unknown) {
         /* no-op */
+      },
+    },
+    time: {
+      delayedCall(_delay: number, _callback: () => void) {
+        /* no-op — tests cover scheduling by construction not firing timers */
       },
     },
     physics: {
@@ -119,17 +175,18 @@ describe('Cluu entity — D-13 compositing pipeline + D-14 API surface', () => {
     expect(cluu.getChildCount()).toBe(5);
   });
 
-  it('seeds slot textures in z-order: back, base, bodyPattern, head, eyes', async () => {
+  it('seeds slot textures in z-order: back, content body, bodyPattern, head, eyes', async () => {
     const Cluu = await loadCluu();
     const scene = makeFakeScene();
     new Cluu(asPhaserScene(scene), 0, 0);
     expect(scene.sprites.map((s) => s.texture.key)).toEqual([
       'cluu_back',
-      'cluu_base',
+      'cluu_content',
       'cluu_body_pattern',
       'cluu_head',
       'cluu_eyes',
     ]);
+    expect(scene.sprites[1].frame).toBe('0.png');
   });
 
   it('setMood accepts all four moods without throwing (D-14 no-op-but-real)', async () => {
@@ -170,7 +227,7 @@ describe('Cluu entity — D-13 compositing pipeline + D-14 API surface', () => {
     cluu.setEquipped('eyes', 'eyes_wink');
     cluu.setEquipped('body', 'stripes');
     expect(scene.sprites[0].texture.key).toBe('back_bag'); // back
-    expect(scene.sprites[1].texture.key).toBe('cluu_base'); // base untouched
+    expect(scene.sprites[1].texture.key).toBe('cluu_content'); // animated base untouched
     expect(scene.sprites[2].texture.key).toBe('stripes'); // body
     expect(scene.sprites[3].texture.key).toBe('hat_a'); // head
     expect(scene.sprites[4].texture.key).toBe('eyes_wink'); // eyes

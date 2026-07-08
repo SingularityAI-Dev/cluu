@@ -12,6 +12,11 @@ export interface CluuCosmetics {
   eyes: string | null;
 }
 
+export interface EncounterResult {
+  verdict: 'fail' | 'pass' | 'flair';
+  message: string;
+}
+
 export interface Anchor {
   x: number;
   y: number;

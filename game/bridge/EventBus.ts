@@ -6,12 +6,16 @@
 //   - game:ready               -> Phaser has booted, MeadowScene has created
 //   - player:anchor-moved      -> (Plan 05) anchor position changed
 //   - cluu:mood                -> (Phase 3) mood changed
+//   - encounter:open           -> Phaser wants React to open an encounter prompt
+//   - encounter:resolved       -> React resolved an encounter and Phaser should swap art
 import mitt, { type Emitter } from 'mitt';
 
 export type GameEvents = {
   'game:ready': { timestampMs: number };
   'player:anchor-moved': { x: number; y: number };
   'cluu:mood': { mood: 'stoked' | 'content' | 'sleepy' | 'blue' };
+  'encounter:open': { encounterId: string };
+  'encounter:resolved': { encounterId: string; spriteKey: string };
 };
 
 // Singleton. Module-level in a file only imported from game/ and app/play/GameClient.tsx

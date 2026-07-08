@@ -23,11 +23,13 @@ const BUTTON_STYLE: CSSProperties = {
 };
 
 export function ConsentBanner() {
+  const [pathname, setPathname] = useState('');
   const [record, setRecord] = useState<ConsentRecord | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    setPathname(window.location.pathname);
     setRecord(getConsent());
     return subscribeConsent(setRecord);
   }, []);
@@ -35,6 +37,7 @@ export function ConsentBanner() {
   // Avoid hydration mismatch: we can't know the client-side decision until mount.
   if (!mounted) return null;
   if (record !== null) return null;
+  if (pathname === '/play') return null;
 
   return (
     <section

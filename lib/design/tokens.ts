@@ -51,6 +51,15 @@ export const palette = {
   meadow_grass_mid: '#6fa872',
   meadow_grass_highlight: '#9bc49e',
   meadow_grass_shadow: '#42744b',
+
+  // --- Encounter object accents (Phase 01.1 Withered Sunflower) ---
+  sunflower_petal: '#f2c94c',
+  sunflower_core: '#7a4a2a',
+  sunflower_stem: '#5b8f45',
+  sunflower_withered: '#a86f3a',
+
+  // --- Cluu accent (Phase 01.1 Content pose) ---
+  cluu_cheek: '#e8b8a0',
 } as const;
 
 /**
@@ -113,5 +122,5 @@ export function hexToInt(hex: `#${string}`): number {
           .map((c) => c + c)
           .join('')
       : raw;
-  return parseInt(full, 16);
+  return Number.parseInt(full, 16);
 }
