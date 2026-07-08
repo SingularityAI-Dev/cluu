@@ -3,8 +3,16 @@ import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true, // Pitfall 5 prevention #4 — catches Phaser scene-leak bugs in dev
-  output: 'standalone', // smaller Docker artifact (Phase 5 bundle target)
+  reactStrictMode: true,
+  output: 'standalone',
+  // The game is a self-contained static file; serve it at the root.
+  async rewrites() {
+    return {
+      beforeFiles: [{ source: '/', destination: '/arcade/index.html' }],
+      afterFiles: [],
+      fallback: [],
+    };
+  },
   // Turbopack is the Next 16 default bundler — do NOT add `experimental.turbo: false` (D-03).
   // Pin the Turbopack root so Next does not pick up a stray lockfile in a parent directory.
   turbopack: {

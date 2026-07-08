@@ -2,6 +2,10 @@
 
 > Last 20 changes. Full history in git.
 
+- 2026-07-08: hard pivot — arcade game replaces the Phaser/Next game; old stack deleted (71 files), repo is now static game at `/` + NIM grading API
+- 2026-07-08: NVIDIA NIM grading adapter (z-ai/glm-5.2) with local fallback; verified live on production
+- 2026-07-08: standalone CLUU arcade game added and deployed public on Vercel
+
 - Design tokens module `lib/design/tokens.ts`: 14 palette tokens, semantic spacing (`tile=32`, `cluu=48`), radii, `hexToInt()` Phaser helper (01.1-01)
 - Encounter-object authoring spec `docs/encounter-object-authoring.md`: canvas sizes, palette-token discipline, Aseprite export checklist, Sunflower worked example (01.1-02)
 - Phase 01.1 plans: 5 plans across 3 waves for visual style + Cluu feel
@@ -18,4 +22,3 @@
 - Phase 01 Plan 07 signout-persistence complete (closes AUTH-01/04/05)
 - Phase 01 Plan 05 anchor + Cluu complete (closes WORLD-02/03/04, CLUU-01)
 - Phase 01 Plan 06 consent-analytics complete
-- Phase 01 Plan 08 MANUAL-SMOKE checklist + preflight evidence shipped, awaiting human browser run
