@@ -8,7 +8,7 @@ reward:
   xp: 10
   library_eligible: true
 grading:
-  model: claude-haiku-4-5
+  model: z-ai/glm-5.2
   temperature: 0.2
 ---
 
