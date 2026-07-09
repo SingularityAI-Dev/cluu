@@ -241,7 +241,7 @@ function resize(){
   canvas.width=innerWidth*dpr; canvas.height=innerHeight*dpr;
   s=innerHeight/VH; viewW=innerWidth/s;
   dark.width=Math.ceil(innerWidth/4); dark.height=Math.ceil(innerHeight/4);
-  const fq=TOUCHY?4:3;
+  const fq=4;
   fgBlur.width=Math.ceil(innerWidth/fq); fgBlur.height=Math.ceil(innerHeight/fq);
 }
 addEventListener('resize',resize); resize();
@@ -261,6 +261,108 @@ function mixRGB(a,b,t){const pa=a.match(/\d+/g).map(Number),pb=b.match(/\d+/g).m
   return `rgb(${Math.round(lerp(pa[0],pb[0],t))},${Math.round(lerp(pa[1],pb[1],t))},${Math.round(lerp(pa[2],pb[2],t))})`;}
 let seed=90211;
 function rnd(){seed=(seed*16807)%2147483647;return (seed-1)/2147483646;}
+/* ============== baked texture tiles — built ONCE at init, zero per-frame cost ==============
+   Two 256px alpha-only tiles + repeat patterns. Uses rnd() under a fixed local seed, then
+   restores the global seed so the world-gen stream (skyline/chains/etc.) is byte-identical. */
+const TEX=(function(){
+  const s0=seed; seed=421337;
+  function makeTexTile(size,fn){
+    const c=document.createElement('canvas');c.width=c.height=size;
+    const g=c.getContext('2d');fn(g,size);return c;
+  }
+  /* wrap-safe soft blob: redraws at 3x3 tile offsets so edges tile seamlessly */
+  function blot(g,S,x,y,r,fill){
+    g.fillStyle=fill;
+    for(let ox=-1;ox<=1;ox++)for(let oy=-1;oy<=1;oy++){
+      const bx=x+ox*S,by=y+oy*S;
+      if(bx+r<0||bx-r>S||by+r<0||by-r>S)continue;
+      g.beginPath();g.arc(bx,by,r,0,7);g.fill();
+    }
+  }
+  /* woodTile: horizontal grain (periodic sine wobble => seamless L/R edges), knots,
+     scratch ticks. Alpha-only darkening; rare lifts capped under rgba(255,240,214,.14). */
+  const woodTile=makeTexTile(256,(g,S)=>{
+    g.lineCap='round';
+    for(let i=0;i<46;i++){
+      const y0=rnd()*S,a1=.5+rnd()*2.2,a2=rnd()*1.1,
+            k1=1+(rnd()*3|0),k2=2+(rnd()*4|0),ph=rnd()*6.283,ph2=rnd()*6.283;
+      const lift=rnd()<.14;
+      g.strokeStyle=lift?`rgba(255,240,214,${.03+rnd()*.05})`:`rgba(0,0,0,${.06+rnd()*.13})`;
+      g.lineWidth=.6+rnd()*1.4;
+      const wraps=y0<8?[0,S]:(y0>S-8?[0,-S]:[0]);   /* vertical wrap for edge-hugging strokes */
+      for(const oy of wraps){
+        g.beginPath();
+        for(let x=0;x<=S;x+=8){
+          const yy=y0+oy+a1*Math.sin(6.283*k1*x/S+ph)+a2*Math.sin(6.283*k2*x/S+ph2);
+          x?g.lineTo(x,yy):g.moveTo(0,yy);
+        }
+        g.stroke();
+      }
+    }
+    /* knots: dark core + elliptical rings, kept off edges (no wrap needed) */
+    for(let i=0;i<5;i++){
+      const kx=32+rnd()*(S-64),ky=32+rnd()*(S-64),kr=3+rnd()*5;
+      g.fillStyle='rgba(0,0,0,.28)';
+      g.beginPath();g.ellipse(kx,ky,kr,kr*.62,0,0,7);g.fill();
+      g.strokeStyle='rgba(0,0,0,.14)';g.lineWidth=1;
+      for(let r2=kr+3;r2<kr+11;r2+=3.5){
+        g.beginPath();g.ellipse(kx,ky,r2,r2*.62,0,0,7);g.stroke();
+      }
+    }
+    /* worn scratch ticks, near-horizontal, one batched stroke */
+    g.strokeStyle='rgba(0,0,0,.12)';g.lineWidth=.8;
+    g.beginPath();
+    for(let i=0;i<26;i++){
+      const x=rnd()*S,y=10+rnd()*(S-20),l=4+rnd()*14,dy=(rnd()-.5)*3;
+      g.moveTo(x,y);g.lineTo(Math.min(x+l,S),y+dy);
+    }
+    g.stroke();
+  });
+  /* grimeTile: two octaves of blotchy darkening with teal-shadow cast (#0a1f22),
+     hairline cracks, drip streaks. The tile is a stain, not a picture. */
+  const grimeTile=makeTexTile(256,(g,S)=>{
+    for(let i=0;i<34;i++)   /* low-frequency blotches */
+      blot(g,S,rnd()*S,rnd()*S,20+rnd()*52,
+        rnd()<.5?`rgba(0,0,0,${.03+rnd()*.05})`:`rgba(10,31,34,${.04+rnd()*.06})`);
+    for(let i=0;i<70;i++)   /* fine speckle octave */
+      blot(g,S,rnd()*S,rnd()*S,2.5+rnd()*10,`rgba(0,0,0,${.04+rnd()*.07})`);
+    /* hairline cracks: jagged polylines with branch stubs, inside a 16px margin */
+    g.strokeStyle='rgba(0,0,0,.22)';g.lineWidth=.9;g.lineCap='round';
+    for(let i=0;i<7;i++){
+      let cx=24+rnd()*(S-48),cy=24+rnd()*(S-48),a=rnd()*6.283;
+      const segs=4+(rnd()*5|0);
+      g.beginPath();g.moveTo(cx,cy);
+      for(let sgm=0;sgm<segs;sgm++){
+        a+=(rnd()-.5)*1.4;
+        cx=clamp(cx+Math.cos(a)*(7+rnd()*15),16,S-16);
+        cy=clamp(cy+Math.sin(a)*(7+rnd()*15),16,S-16);
+        g.lineTo(cx,cy);
+        if(rnd()<.3){
+          g.moveTo(cx,cy);
+          g.lineTo(clamp(cx+Math.cos(a+1.9)*8,16,S-16),clamp(cy+Math.sin(a+1.9)*8,16,S-16));
+          g.moveTo(cx,cy);
+        }
+      }
+      g.stroke();
+    }
+    /* drip streaks: soft vertical smears (init-time gradients, fine) */
+    for(let i=0;i<8;i++){
+      const dx=20+rnd()*(S-40),dy=rnd()*S*.5,dl=24+rnd()*60,dw=1.5+rnd()*3;
+      const dg=g.createLinearGradient(0,dy,0,dy+dl);
+      dg.addColorStop(0,'rgba(0,0,0,.1)');dg.addColorStop(1,'rgba(0,0,0,0)');
+      g.fillStyle=dg;g.fillRect(dx-dw/2,dy,dw,dl);
+    }
+  });
+  const pg=woodTile.getContext('2d');
+  const wood=pg.createPattern(woodTile,'repeat');
+  const woodV=pg.createPattern(woodTile,'repeat');
+  try{woodV.setTransform(new DOMMatrix().rotate(90));}catch(e){} /* grain runs toward camera, matches radial plank seams */
+  const grime=pg.createPattern(grimeTile,'repeat');
+  seed=s0;   /* restore global stream — world gen unchanged */
+  return {wood,woodV,grime};
+})();
+
+
 
 /* ============================== audio ============================== */
 let AC=null,master=null,delayNode=null,musicOn=true,nextBeat=0,beatIdx=0,noiseBuf=null;
@@ -339,6 +441,7 @@ const keys={left:false,right:false,jump:false};
 let jumpPressed=false,interactPressed=false,lanePressed=false,fwdPressed=false;
 function kd(e){
   if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key))e.preventDefault();
+  if(state==='cine'&&introSeq.on){skipIntro();return;}
   if(state==='title'&&(e.key==='Enter'||e.key===' ')){startGame();return;}
   if(state==='modal'){modalKey(e);return;}
   if(state==='duel'){duelKey(e);return;}
@@ -362,6 +465,7 @@ function ku(e){
 }
 addEventListener('keydown',kd);addEventListener('keyup',ku);
 addEventListener('pointerdown',initAudio);addEventListener('keydown',initAudio);
+addEventListener('pointerdown',()=>{if(state==='cine'&&introSeq.on)skipIntro();});
 if(TOUCHY){
   document.getElementById('touch').classList.add('on');
   const bind=(id,on,off)=>{
@@ -764,6 +868,297 @@ function chapterCard(n,t,hold){
   c.style.opacity=1;
   setTimeout(()=>c.style.opacity=0,hold||3000);
 }
+/* ============================== cinematic cold-open ==============================
+   Trailer grammar (LN3 Backstage 00:00-00:11): three letterboxed void shots with slow
+   camera drift, hard-cut with black dips, then fade up on the workbench + wake blink.
+   state==='cine' && introSeq.on distinguishes this from the boss-intro cine path. */
+const introSeq={
+  on:false,t:0,shot:0,
+  shots:[{dur:2.0},{dur:2.0},{dur:2.5},{dur:2.0}],
+  scis:[],dust:[],clip:[]
+};
+(function buildIntro(){ // own seeded stream: never touches the gameplay rnd() sequence
+  let sd=48271;const r=()=>{sd=(sd*16807)%2147483647;return (sd-1)/2147483646;};
+  for(let i=0;i<6;i++)introSeq.scis.push({
+    u:.16+i*.135+(r()-.5)*.04,len:96+r()*140,sc:.75+r()*1.35,ph:r()*6.28,sp:.45+r()*.5});
+  for(let i=0;i<46;i++)introSeq.dust.push({u:r(),v:r(),ph:r()*6.28,sp:.18+r()*.5,r:.8+r()*1.3});
+  for(let i=0;i<16;i++)introSeq.clip.push({u:r(),v:r(),ph:r()*6.28,a:r()*6.28});
+})();
+const introEz=t=>t*t*(3-2*t);
+
+function updateIntro(dt){
+  introSeq.t+=dt;
+  if(P.blink>0)P.blink-=dt;
+  if(introSeq.shot===3){ // scripted wake blinks on Cluu himself
+    if(introSeq.t>=.95&&introSeq.t<1.1)P.blink=.13;
+    if(introSeq.t>=1.42&&introSeq.t<1.55)P.blink=.13;
+  }
+  if(introSeq.t>=introSeq.shots[introSeq.shot].dur)introAdvance();
+}
+function introAdvance(){
+  introSeq.shot++;introSeq.t=0;
+  if(introSeq.shot>=introSeq.shots.length){endIntro();return;}
+  hiss(.45,.035,650); // cut-breath on every hard cut
+  if(introSeq.shot===2)tone(55,2.4,'sine',.07); // low drone under the void shot
+  if(introSeq.shot===3){ // land the camera on the workbench for the wake shot
+    cam.x=0;cam.y=120;P.x=120;P.y=GY;P.vx=0;P.vy=0;P.dir=1;P.lane=0;P.laneT=0;
+    chapterCard('LEVEL I','The Cold Boot Yards',2600);
+    sfx.card();
+  }
+}
+function skipIntro(){
+  if(!introSeq.on)return;
+  if(introSeq.shot<3){introSeq.shot=2;introSeq.t=9e9;} // next update() cuts to the wake shot
+  else endIntro(); // second press: straight to control
+}
+function endIntro(){
+  if(!introSeq.on)return;
+  introSeq.on=false;
+  letterbox(false);state='play';
+  flags[0].done=true;
+  toast('✔ committed: "wake on the workbench"','lamps are checkpoints — small commits, safe travels');
+  sfx.commit();
+}
+
+/* full-frame void shots (shots 0-2). Runs in view space: viewW x 540, floor = GY,
+   so contactShadow / floorPool land on the real walk line. */
+function drawIntro(m){
+  const it=introSeq.t,sh=introSeq.shots[introSeq.shot];
+  const prog=clamp(it/sh.dur,0,1);
+  const f=clamp(it/.4,0,1)*clamp((sh.dur-it)/.32,0,1); // dip-to-black at each cut
+  const vw=viewW,cx=vw/2;
+  ctx.setTransform(dpr*s,0,0,dpr*s,0,0);
+  ctx.fillStyle='#04090b';ctx.fillRect(0,0,vw,VH);
+
+  if(introSeq.shot===0){
+    /* -------- shot 1: hanging scissors sway in darkness (frame_0005) -------- */
+    // slow push-in around the scissor cluster
+    const zk2=1+.05*introEz(prog);
+    ctx.translate(cx,235);ctx.scale(zk2,zk2);ctx.translate(-cx,-235-6*prog);
+    const bg=ctx.createLinearGradient(0,0,0,VH);
+    bg.addColorStop(0,'#0a1f22');bg.addColorStop(.45,'#071518');bg.addColorStop(1,'#04100f');
+    ctx.fillStyle=bg;ctx.fillRect(-40,-40,vw+80,VH+80);
+    const glow=ctx.createRadialGradient(cx,210,20,cx,210,340);
+    glow.addColorStop(0,'rgba(22,56,59,.5)');glow.addColorStop(1,'rgba(22,56,59,0)');
+    ctx.fillStyle=glow;ctx.fillRect(cx-360,-40,720,600);
+    // plank ceiling, sagging (nothing straight)
+    ctx.fillStyle='#04100f';
+    ctx.beginPath();ctx.moveTo(-40,-40);ctx.lineTo(vw+40,-40);ctx.lineTo(vw+40,46);
+    ctx.quadraticCurveTo(cx,60,-40,48);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,.55)';ctx.lineWidth=2;
+    ctx.beginPath();
+    for(let px=30;px<vw;px+=88+((px*7)%23)){ctx.moveTo(px,-40);ctx.lineTo(px-6,50);}
+    ctx.stroke();
+    // pinned paper patterns lower-left, pale and crooked
+    ctx.save();ctx.translate(vw*.14,388);ctx.rotate(-.05);
+    ctx.fillStyle='rgba(210,220,200,.06)';ctx.fillRect(0,0,120,86);
+    ctx.fillRect(140,14,88,64);
+    ctx.strokeStyle='rgba(210,220,200,.08)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(12,20);ctx.lineTo(60,66);ctx.moveTo(150,30);ctx.lineTo(210,58);ctx.stroke();
+    ctx.restore();
+    // wall clock, right (frame_0005)
+    ctx.save();ctx.translate(vw*.82,318);
+    ctx.fillStyle='#0a1c19';ctx.fillRect(-26,26,52,150);
+    ctx.fillStyle='#0d1c1e';ctx.beginPath();ctx.arc(0,0,34,0,7);ctx.fill();
+    ctx.strokeStyle='rgba(231,227,158,.14)';ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.arc(0,0,34,0,7);ctx.stroke();
+    ctx.strokeStyle='rgba(220,225,210,.22)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-20);ctx.moveTo(0,0);ctx.lineTo(13,7);ctx.stroke();
+    ctx.restore();
+    // ropes: one batched stroke
+    ctx.strokeStyle='rgba(10,14,18,.85)';ctx.lineWidth=3;
+    ctx.beginPath();
+    for(const sc of introSeq.scis){
+      const lx=sc.u*vw,sw=Math.sin(T*sc.sp+sc.ph)*7;
+      ctx.moveTo(lx,44);
+      ctx.quadraticCurveTo(lx+sw*.4,44+sc.len*.6,lx+sw,44+sc.len);
+    }
+    ctx.stroke();
+    // scissors: silhouette blades + handle rings, faint blade glints
+    for(const sc of introSeq.scis){
+      const lx=sc.u*vw,sw=Math.sin(T*sc.sp+sc.ph)*7;
+      ctx.save();ctx.translate(lx+sw,44+sc.len);ctx.rotate(sw*.03+.1);ctx.scale(sc.sc,sc.sc);
+      ctx.fillStyle='#0a1417';
+      ctx.beginPath();ctx.arc(0,-5,5.5,0,7);ctx.arc(-8,-4,4.5,0,7);ctx.fill(); // handle rings
+      ctx.beginPath(); // two open blades, tapered
+      ctx.moveTo(-1,0);ctx.lineTo(4.5,42);ctx.lineTo(2,44);ctx.lineTo(-3.5,2);ctx.closePath();
+      ctx.moveTo(-7,0);ctx.lineTo(-13,38);ctx.lineTo(-10.5,40);ctx.lineTo(-4.5,2);ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle='rgba(255,240,214,.12)';ctx.lineWidth=1; // rim glint, one edge only
+      ctx.beginPath();ctx.moveTo(-1,2);ctx.lineTo(4,40);ctx.stroke();
+      ctx.restore();
+    }
+    // drifting thread clippings
+    ctx.fillStyle='rgba(220,225,210,.1)';
+    for(const c of introSeq.clip){
+      const px2=c.u*vw+Math.sin(T*.3+c.ph)*16,py2=60+c.v*380+Math.sin(T*.22+c.ph*2)*24;
+      ctx.fillRect(px2,py2,3,1.2);
+    }
+  }else if(introSeq.shot===1){
+    /* -------- shot 2: mannequin under a moon shaft, dust motes (frame_0008) -------- */
+    const dolly=lerp(7,-7,introEz(prog)); // slow lateral drift
+    ctx.translate(dolly,0);
+    const bg=ctx.createLinearGradient(0,0,0,VH);
+    bg.addColorStop(0,'#061114');bg.addColorStop(.55,'#10262a');bg.addColorStop(1,'#061114');
+    ctx.fillStyle=bg;ctx.fillRect(-40,-40,vw+80,VH+80);
+    const mx=cx+30,my=128,mr=58;
+    // moon halo
+    ctx.globalCompositeOperation='lighter';
+    const halo=ctx.createRadialGradient(mx,my,mr*.4,mx,my,mr*3.1);
+    halo.addColorStop(0,'rgba(200,225,215,.2)');halo.addColorStop(1,'rgba(200,225,215,0)');
+    ctx.fillStyle=halo;ctx.fillRect(mx-mr*3.2,my-mr*3.2,mr*6.4,mr*6.4);
+    // porthole disc: cream core, ring lives in the rim (never a hot white circle)
+    const core=ctx.createRadialGradient(mx-8,my-8,4,mx,my,mr);
+    core.addColorStop(0,'rgba(253,246,216,.78)');core.addColorStop(.55,'rgba(231,227,158,.3)');core.addColorStop(1,'rgba(231,227,158,.04)');
+    ctx.fillStyle=core;ctx.beginPath();ctx.arc(mx,my,mr,0,7);ctx.fill();
+    ctx.strokeStyle='rgba(231,227,158,.22)';ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(mx,my,mr+4,0,7);ctx.stroke();
+    // volumetric shaft down to the floor
+    const shg=ctx.createLinearGradient(0,my,0,GY);
+    shg.addColorStop(0,'rgba(172,208,198,.13)');shg.addColorStop(1,'rgba(172,208,198,.02)');
+    ctx.fillStyle=shg;
+    ctx.beginPath();ctx.moveTo(mx-mr*.7,my+mr*.5);ctx.lineTo(mx+mr*.7,my+mr*.5);
+    ctx.lineTo(mx+150,GY+6);ctx.lineTo(mx-150,GY+6);ctx.closePath();ctx.fill();
+    ctx.globalCompositeOperation='source-over';
+    // floor + plank seams
+    ctx.fillStyle='#0b1613';ctx.fillRect(-40,GY,vw+80,VH-GY+40);
+    ctx.strokeStyle='rgba(0,0,0,.4)';ctx.lineWidth=1.5;
+    ctx.beginPath();
+    for(let px=20;px<vw;px+=74+((px*5)%19)){ctx.moveTo(px,GY);ctx.lineTo(px+18,VH+40);}
+    ctx.stroke();
+    floorPool(mx,240,'190,212,200',.1,1);
+    // sewing table + machine silhouette, right of shaft (frame_0008)
+    const tx2=mx+180;
+    contactShadow(tx2,90,.24);
+    ctx.fillStyle='#04100f';
+    ctx.fillRect(tx2-110,352,220,14);                              // tabletop
+    ctx.fillRect(tx2-96,366,10,GY-366);ctx.fillRect(tx2+86,366,10,GY-366);
+    ctx.beginPath();                                               // machine body: arm + head
+    ctx.moveTo(tx2-52,352);ctx.lineTo(tx2-52,308);ctx.quadraticCurveTo(tx2-50,292,tx2-30,290);
+    ctx.lineTo(tx2+34,290);ctx.quadraticCurveTo(tx2+52,292,tx2+52,310);ctx.lineTo(tx2+52,326);
+    ctx.lineTo(tx2+40,326);ctx.lineTo(tx2+40,304);ctx.lineTo(tx2-38,304);ctx.lineTo(tx2-38,352);
+    ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.arc(tx2-52,318,13,0,7);ctx.fill();         // hand wheel
+    ctx.fillRect(tx2+42,326,8,20);                                 // needle bar
+    ctx.strokeStyle='rgba(255,240,214,.11)';ctx.lineWidth=1.2;     // moonlit rim on the arm
+    ctx.beginPath();ctx.moveTo(tx2-30,290);ctx.lineTo(tx2+34,290);ctx.stroke();
+    // pin cushion + jar
+    ctx.fillStyle='#0a1c19';
+    ctx.beginPath();ctx.ellipse(tx2-84,346,13,8,0,0,7);ctx.fill();
+    ctx.fillRect(tx2+64,318,22,34);
+    // dress mannequin in the pool, stitched seam down the torso
+    const qx=mx-64,qh=232,qy=GY-qh;
+    contactShadow(qx,30,.26);
+    ctx.fillStyle='#04100f';
+    ctx.beginPath();ctx.arc(qx,qy+qh*.05,14,0,7);ctx.fill();
+    ctx.beginPath();ctx.ellipse(qx,qy+qh*.36,33,qh*.29,0,0,7);ctx.fill();
+    ctx.fillRect(qx-3.5,qy+qh*.62,7,qh*.38);
+    ctx.beginPath();ctx.ellipse(qx,GY-4,28,6,0,0,7);ctx.fill();
+    ctx.strokeStyle='rgba(255,240,214,.13)';ctx.lineWidth=1.4;     // moon-side rim
+    ctx.beginPath();ctx.ellipse(qx,qy+qh*.36,33,qh*.29,0,-.5,.6);ctx.stroke();
+    ctx.strokeStyle='rgba(200,210,200,.1)';ctx.lineWidth=1;        // stitch dashes
+    ctx.beginPath();
+    for(let sy2=qy+qh*.16;sy2<qy+qh*.56;sy2+=11){ctx.moveTo(qx+2,sy2);ctx.lineTo(qx+3,sy2+5);}
+    ctx.stroke();
+    // dust motes: all faint, the ones inside the shaft catch light
+    for(const d of introSeq.dust){
+      const px2=d.u*vw+Math.sin(T*d.sp+d.ph)*13,py2=80+d.v*360+Math.sin(T*d.sp*1.5+d.ph*2)*18;
+      const lit=Math.abs(px2-mx)<130&&py2>my;
+      ctx.fillStyle=lit?'rgba(230,225,190,.22)':'rgba(200,210,195,.08)';
+      ctx.fillRect(px2,py2,d.r,d.r);
+    }
+  }else{
+    /* -------- shot 3: tiny Cluu head-bowed under one ceiling cone in void (frame_0011) -------- */
+    const zk2=1+.07*introEz(prog); // slow push toward the small figure
+    ctx.translate(cx,GY-40);ctx.scale(zk2,zk2);ctx.translate(-cx,-(GY-40));
+    const bg=ctx.createRadialGradient(cx,300,40,cx,300,520);
+    bg.addColorStop(0,'#16383b');bg.addColorStop(.55,'#0a1f22');bg.addColorStop(1,'#050d10');
+    ctx.fillStyle=bg;ctx.fillRect(-60,-60,vw+120,VH+120);
+    // light cone from above
+    ctx.globalCompositeOperation='lighter';
+    const cg=ctx.createLinearGradient(0,-40,0,GY);
+    cg.addColorStop(0,'rgba(200,225,215,.12)');cg.addColorStop(1,'rgba(200,225,215,.02)');
+    ctx.fillStyle=cg;
+    ctx.beginPath();ctx.moveTo(cx-26,-40);ctx.lineTo(cx+26,-40);
+    ctx.lineTo(cx+150,GY+6);ctx.lineTo(cx-150,GY+6);ctx.closePath();ctx.fill();
+    ctx.globalCompositeOperation='source-over';
+    // floorboards fading out from the pool (frame_0011 floor)
+    ctx.strokeStyle='rgba(6,14,15,.5)';ctx.lineWidth=2;
+    ctx.beginPath();
+    for(let i=-4;i<=4;i++){const px=cx+i*46;ctx.moveTo(px-14,GY+2);ctx.lineTo(px+20,VH+30);}
+    ctx.stroke();
+    floorPool(cx,185,'190,215,205',.14,1);
+    // wisps above the head (the floating scrap in frame_0011)
+    ctx.fillStyle='rgba(210,220,205,.12)';
+    for(let i=0;i<3;i++){
+      const c=introSeq.clip[i];
+      ctx.fillRect(cx+Math.sin(T*.4+c.ph)*30,250+i*26+Math.sin(T*.3+c.a)*10,4,1.5);
+    }
+    // tiny Cluu, head bowed: near-black warm silhouette, only faint rims
+    const breathe=Math.sin(T*1.4)*1.2;
+    contactShadow(cx,22,.4);
+    ctx.save();ctx.translate(cx,GY+breathe*.3);ctx.scale(.92,.92+breathe*.004);
+    const dk=mixRGB('rgb(217,119,87)','rgb(9,16,19)',.84); // terracotta buried in shadow
+    ctx.fillStyle=dk;
+    roundRect(-11,-8,9,8,3.5);ctx.fill();roundRect(2,-8,9,8,3.5);ctx.fill(); // stubby legs
+    roundRect(-17,-38,34,32,8);ctx.fill();                                   // body
+    roundRect(-21,-28,6,14,3);ctx.fill();roundRect(15,-28,6,14,3);ctx.fill();// arms hanging
+    ctx.save();ctx.translate(3,-36);ctx.rotate(.42);                         // bowed head
+    ctx.fillStyle=dk;roundRect(-13,-17,26,18,6);ctx.fill();
+    ctx.fillStyle=mixRGB('rgb(138,106,51)','rgb(9,16,19)',.8);               // goggles, dark
+    ctx.beginPath();ctx.arc(-5,-17,5,0,7);ctx.arc(6,-17,5,0,7);ctx.fill();
+    ctx.fillStyle='rgba(255,212,137,.18)';                                   // headlamp: barely an ember
+    ctx.beginPath();ctx.arc(12,-13,2,0,7);ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle='rgba(255,240,214,.1)';ctx.lineWidth=1.2;                // top rim from the cone
+    ctx.beginPath();ctx.moveTo(cx-14,GY-38+breathe*.3);ctx.lineTo(cx+12,GY-40+breathe*.3);ctx.stroke();
+  }
+
+  /* shared post: same grain + teal grade + vignette + floor lift as the game frame */
+  const W=innerWidth,H=innerHeight;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(!REDUCED){
+    ctx.globalAlpha=.5;ctx.save();
+    ctx.translate(-((T*731)%160),-((T*547)%160));
+    ctx.fillStyle=ctx.createPattern(grain,'repeat');
+    ctx.fillRect(0,0,W+160,H+160);ctx.restore();ctx.globalAlpha=1;
+  }
+  ctx.globalCompositeOperation='overlay';
+  ctx.fillStyle='rgba(14,54,58,.22)';ctx.fillRect(0,0,W,H);
+  ctx.globalCompositeOperation='source-over';
+  const vg=ctx.createRadialGradient(W/2,H/2,H*.26,W/2,H/2,H*.9);
+  vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(3,10,12,.82)');
+  ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
+  ctx.globalCompositeOperation='lighten';
+  ctx.fillStyle='#0a1113';ctx.fillRect(0,0,W,H); // never below teal-black
+  ctx.globalCompositeOperation='source-over';
+  // dip-to-black cut
+  if(f<1){ctx.fillStyle=`rgba(4,9,11,${1-f})`;ctx.fillRect(0,0,W,H);}
+}
+
+/* wake overlay (shot 4): drawn AFTER the normal scene — fade from black + eyelid blink */
+function drawIntroWake(){
+  const t=introSeq.t,W=innerWidth,H=innerHeight;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const fade=clamp(1-t/.75,0,1);
+  if(fade>0){ctx.fillStyle=`rgba(4,9,11,${fade})`;ctx.fillRect(0,0,W,H);}
+  // eyelid amount: open slowly, one sleepy re-blink, then clear
+  let lid=0;
+  if(t<.55)lid=1;
+  else if(t<1.25)lid=1-introEz((t-.55)/.7);
+  else if(t<1.42)lid=introEz((t-1.25)/.17)*.85;
+  else if(t<1.62)lid=.85*(1-introEz((t-1.42)/.2));
+  if(lid>.01){
+    const h2=H*.52*lid;
+    ctx.fillStyle='#04090b';
+    ctx.beginPath(); // curved inner edges (worn, organic — never a straight bar)
+    ctx.moveTo(0,0);ctx.lineTo(W,0);ctx.lineTo(W,h2*.8);
+    ctx.quadraticCurveTo(W/2,h2*1.25,0,h2*.8);ctx.closePath();
+    ctx.moveTo(0,H);ctx.lineTo(W,H);ctx.lineTo(W,H-h2*.75);
+    ctx.quadraticCurveTo(W/2,H-h2*1.15,0,H-h2*.75);ctx.closePath();
+    ctx.fill();
+  }
+}
 
 /* ============================== lesson modal ============================== */
 const modalEl=$('modal');
@@ -950,13 +1345,9 @@ function startGame(){
   $('title').classList.remove('show');
   $('hud').classList.add('show');
   state='cine';letterbox(true);
-  chapterCard('LEVEL I','The Cold Boot Yards',3200);
-  setTimeout(()=>{
-    letterbox(false);state='play';
-    flags[0].done=true;
-    toast('✔ committed: "wake on the workbench"','lamps are checkpoints — small commits, safe travels');
-    sfx.commit();
-  },3400);
+  introSeq.on=true;introSeq.t=0;introSeq.shot=0;
+  cam.x=0;cam.y=120;
+  sfx.reveal();
   curLevel=0;
 }
 $('startbtn').addEventListener('click',startGame);
@@ -999,6 +1390,7 @@ function update(dt){
     if(bs.state==='dying'){bs.t+=dt;
       if(rnd()<.8)spawnMoth(bs.x+(rnd()-.5)*160,280+(rnd()-.5)*120);}
   }
+  if(state==='cine'&&introSeq.on){updateIntro(dt);updateParticles(dt);return;}
   if(state==='cine'&&activeBoss){  // camera drifts to arena during intro
     const a=ARENA[activeBoss.i];
     const tx=clamp(a.cx-viewW*.5,0,LW-viewW);
@@ -1235,7 +1627,7 @@ for(let x=700;x<LW*1.35+1200;x+=860+rnd()*820){
 for(const o of fgOcc){
   let best=1e9,bx=o.lx;
   for(const lp of lamps){const sxp=lp.x*1.35;if(Math.abs(sxp-o.lx)<best){best=Math.abs(sxp-o.lx);bx=sxp;}}
-  o.lx=bx+(rnd()<.5?-1:1)*(90+rnd()*140);
+  o.lx=bx+(rnd()<.5?-1:1)*(240+rnd()*180);
 }
 const vents=[600,1900,3800,5600,7050,9450,10500,12300,13900,15550];
 const tanks=[];    // midground pf 1 giant wall props: drawer-chests, mannequins, thread spools, prop crates
@@ -1245,6 +1637,161 @@ for(const t of tanks){
   let best=1e9,dir=1;
   for(const lp of lamps){const d=Math.abs(lp.x-t.x);if(d<best){best=d;dir=lp.x>t.x?1:-1;}}
   t.ldir=dir;t.lnear=clamp(1-best/520,0,1);
+}
+/* ===== decor creatures: limp residents & marionettes (frames 0058/0078) ===== */
+/* seated limp puppet resident (frame_0058: dolls on the rug, heads on shoulders) */
+function drawSeatedDoll(x,scale,m,variant){
+  const v=variant||0,side=(v%2)?-1:1;            /* loll + lean direction */
+  const bob=Math.sin(T*.7+x*.013)*.8;            /* barely-breathing idle */
+  const body=mixRGB(m.sil2,'rgb(22,56,59)',.30);
+  const dk=mixRGB(m.sil,'rgb(0,0,0)',.25);
+  contactShadow(x,26*scale,.26);
+  ctx.save();ctx.translate(x,GY);ctx.scale(scale,scale);
+  /* splayed jointed legs — one knee raised on some variants */
+  ctx.strokeStyle=dk;ctx.lineWidth=5;ctx.lineCap='round';
+  ctx.beginPath();
+  ctx.moveTo(-4,-16);ctx.lineTo(-14,-4);ctx.lineTo(-26+v*2,0);
+  ctx.moveTo(4,-16);
+  if(v%3===2){ctx.lineTo(13,-12);ctx.lineTo(20,0);}
+  else{ctx.lineTo(14,-5);ctx.lineTo(27-v*2,0);}
+  ctx.stroke();
+  /* sagging torso, weight fallen toward the lean side */
+  ctx.fillStyle=body;
+  ctx.beginPath();
+  ctx.moveTo(-9,-14);
+  ctx.quadraticCurveTo(-11+side*3,-30,side*4,-36+bob);
+  ctx.quadraticCurveTo(11+side*3,-28,9,-14);
+  ctx.closePath();ctx.fill();
+  /* limp arms, hands dead on the floor */
+  ctx.strokeStyle=body;ctx.lineWidth=4;
+  ctx.beginPath();
+  ctx.moveTo(-8,-28);ctx.lineTo(-15,-14);ctx.lineTo(-13-v,-1);
+  ctx.moveTo(8,-28);ctx.lineTo(16,-15);ctx.lineTo(12+v,-1);
+  ctx.stroke();
+  /* head dropped onto the shoulder */
+  const hx3=side*7,hy=-38+bob;
+  ctx.fillStyle=body;
+  ctx.beginPath();ctx.arc(hx3,hy,8.5,0,7);ctx.fill();
+  ctx.fillStyle=dk;                              /* sagging cap / hair mop */
+  ctx.beginPath();ctx.arc(hx3-side*1.5,hy-3,8,Math.PI*.9,Math.PI*2.06);ctx.fill();
+  /* stitched seam rim read */
+  ctx.strokeStyle='rgba(255,240,214,.12)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(side*2,-34+bob);ctx.lineTo(side*6,-20);ctx.stroke();
+  if(v%4===1){ctx.fillStyle='rgba(210,60,50,.5)';ctx.fillRect(hx3+side*3,hy+1,2,2);} /* one button eye */
+  ctx.restore();
+}
+/* doll slumped against a wall / shelf lip (frame_0078: shelf residents) */
+function drawShelfDoll(x,y,m,variant){
+  const v=variant||0,side=(v%2)?-1:1;
+  const body=mixRGB(m.sil2,'rgb(22,56,59)',.26);
+  const dk=mixRGB(m.sil,'rgb(0,0,0)',.3);
+  if(y>GY-8)contactShadow(x,16,.26);
+  ctx.save();ctx.translate(x,y);ctx.scale(side,1);
+  if(y<=GY-8){ctx.fillStyle='rgba(0,0,0,.3)';        /* seat shadow on the shelf */
+    ctx.beginPath();ctx.ellipse(0,2,16,3.5,0,0,7);ctx.fill();}
+  /* legs: folded over the lip, or stretched flat */
+  ctx.strokeStyle=dk;ctx.lineWidth=4.5;ctx.lineCap='round';
+  ctx.beginPath();
+  if(v%3===0){ctx.moveTo(-2,-12);ctx.lineTo(2,2);ctx.lineTo(3,14);
+              ctx.moveTo(3,-12);ctx.lineTo(8,3);ctx.lineTo(7,15);}
+  else{ctx.moveTo(-2,-12);ctx.lineTo(10,-6);ctx.lineTo(19,0);
+       ctx.moveTo(3,-12);ctx.lineTo(12,-3);ctx.lineTo(16,1);}
+  ctx.stroke();
+  /* torso tipped hard into the wall behind */
+  ctx.fillStyle=body;
+  ctx.beginPath();
+  ctx.moveTo(-8,-8);ctx.quadraticCurveTo(-13,-24,-6,-30);
+  ctx.quadraticCurveTo(4,-26,6,-10);ctx.closePath();ctx.fill();
+  /* dead arms */
+  ctx.strokeStyle=body;ctx.lineWidth=3.5;
+  ctx.beginPath();ctx.moveTo(-6,-24);ctx.lineTo(-12,-12);ctx.lineTo(-11,-2);
+  ctx.moveTo(2,-22);ctx.lineTo(9,-13);ctx.lineTo(8,-2);ctx.stroke();
+  /* head fallen fully forward onto the chest */
+  const bob=Math.sin(T*.5+x*.02)*.6;
+  ctx.fillStyle=body;
+  ctx.beginPath();ctx.arc(-2,-30+bob,7,0,7);ctx.fill();
+  ctx.fillStyle=dk;
+  ctx.beginPath();ctx.arc(-3,-33+bob,6.5,Math.PI*.85,Math.PI*2.1);ctx.fill();
+  /* faint rim on the lit shoulder */
+  ctx.strokeStyle='rgba(255,240,214,.11)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(4,-24);ctx.quadraticCurveTo(6,-16,5,-10);ctx.stroke();
+  ctx.restore();
+}
+/* skeletal wooden horse marionette on strings (frame_0078, hung above shelves).
+   y = height of the spine; strings run off the top of the frame. Sways widest. */
+function drawMarionetteHorse(x,y,scale,m){
+  const sw=Math.sin(T*.55+x*.01)*7*scale, tilt=Math.sin(T*.55+x*.01+.9)*.05;
+  const wood=mixRGB(m.sil2,'rgb(53,81,84)',.35);
+  const dk=mixRGB(m.sil,'rgb(0,0,0)',.2);
+  /* three string drops, slack follows the sway */
+  ctx.strokeStyle='rgba(255,240,214,.13)';ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(x-30*scale,cam.y-8);ctx.lineTo(x+sw-30*scale,y);
+  ctx.moveTo(x+26*scale,cam.y-8);ctx.lineTo(x+sw+26*scale,y+2*scale);
+  ctx.moveTo(x+52*scale,cam.y-8);ctx.lineTo(x+sw+46*scale,y-30*scale);
+  ctx.stroke();
+  ctx.save();ctx.translate(x+sw,y);ctx.rotate(tilt);ctx.scale(scale,scale);
+  ctx.strokeStyle=wood;ctx.lineCap='round';
+  ctx.lineWidth=5;                                    /* sagging spine */
+  ctx.beginPath();ctx.moveTo(-34,0);ctx.quadraticCurveTo(0,-7,30,-2);ctx.stroke();
+  ctx.lineWidth=3;                                    /* slat ribs, gaps showing */
+  ctx.beginPath();
+  for(let i=0;i<5;i++){const rx2=-26+i*12;
+    ctx.moveTo(rx2,-4);ctx.quadraticCurveTo(rx2-3,10,rx2+2,20-i);}
+  ctx.stroke();
+  ctx.lineWidth=4;                                    /* neck slats */
+  ctx.beginPath();ctx.moveTo(28,-3);ctx.lineTo(40,-22);ctx.lineTo(44,-34);ctx.stroke();
+  /* long angular skull, jaw dropped */
+  ctx.fillStyle=wood;
+  ctx.beginPath();
+  ctx.moveTo(40,-40);ctx.lineTo(66,-28);ctx.lineTo(64,-22);ctx.lineTo(46,-26);
+  ctx.lineTo(42,-28);ctx.closePath();ctx.fill();
+  ctx.fillStyle=dk;
+  ctx.beginPath();ctx.moveTo(46,-25);ctx.lineTo(62,-19);ctx.lineTo(48,-20);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(40,-40);ctx.lineTo(37,-48);ctx.lineTo(43,-42);ctx.closePath();ctx.fill();
+  /* dangling stick legs, each a beat out of phase; hinge pins */
+  ctx.strokeStyle=dk;ctx.lineWidth=3.5;
+  ctx.beginPath();
+  for(let i=0;i<4;i++){const lx2=-26+i*17,ph=Math.sin(T*.55+x*.01+i*1.7)*3;
+    ctx.moveTo(lx2,14);ctx.lineTo(lx2+ph,30);ctx.lineTo(lx2+ph*1.8,46);}
+  ctx.stroke();
+  ctx.fillStyle=wood;
+  for(let i=0;i<4;i++){ctx.beginPath();ctx.arc(-26+i*17,14,2.5,0,7);ctx.fill();}
+  /* one faint eye + rim along the skull ridge */
+  ctx.fillStyle='rgba(255,240,214,.14)';ctx.fillRect(52,-33,2,2);
+  ctx.strokeStyle='rgba(255,240,214,.10)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(42,-39);ctx.lineTo(64,-28);ctx.stroke();
+  ctx.restore();
+}
+/* ---- placement arrays (deterministic via rnd(); define in the decor section) ---- */
+const seatedDolls=[940,2150,3695,4165,4245,4795,5345,5865,5935,6465,
+  7045,7555,7645,8245,8845,9305,9395,9865,11050,12250,13845,15045,16135]
+  .map(x=>({x,sc:.85+rnd()*.3,v:(rnd()*4)|0}));
+const shelfDolls=[3960,5560,6640,7300,8560,9560,10850,14250,15800].map(x=>{
+  let best=260,px=x,py=GY;                     /* snap to nearest static ledge */
+  for(const p of plats){
+    if(p.ground||p.mover)continue;
+    const cx2=p.x+p.w/2,d=Math.abs(cx2-x);
+    if(d<best){best=d;px=clamp(x,p.x+16,p.x+p.w-16);py=p.y;}
+  }
+  return {x:px,y:py,v:(rnd()*4)|0};
+});
+const horseDecor=[[4480,232,1],[7820,214,1.15],[9080,240,.9],[12520,226,1],[14680,220,1.05]]
+  .map(([x,y,sc])=>({x,y,sc}));
+/* ---- one culled draw pass ---- */
+function drawDecorCreatures(m){
+  for(const d of seatedDolls){
+    if(d.x<cam.x-80||d.x>cam.x+viewW+80)continue;
+    drawSeatedDoll(d.x,d.sc,m,d.v);
+  }
+  for(const d of shelfDolls){
+    if(d.x<cam.x-80||d.x>cam.x+viewW+80)continue;
+    drawShelfDoll(d.x,d.y,m,d.v);
+  }
+  for(const h of horseDecor){
+    if(h.x<cam.x-160||h.x>cam.x+viewW+160)continue;
+    drawMarionetteHorse(h.x,h.y,h.sc,m);
+  }
 }
 
 /* ============================== drawing helpers ============================== */
@@ -1282,23 +1829,23 @@ function gearPath(cx,cy,r,teeth,rot,c){
 function drawFgOcc(c,fx0){
   for(const o of fgOcc){
     if(o.lx<fx0-260||o.lx>fx0+viewW*1.35+260)continue;
-    c.fillStyle='rgba(3,5,7,.85)';
+    c.fillStyle='rgba(3,5,7,.68)';
     if(o.type==='pipe'){
       c.fillRect(o.lx,cam.y*1.12-40,24*o.s,720);
       c.fillRect(o.lx-7,cam.y*1.12+140*o.s,38*o.s,16);
     }else if(o.type==='crate'){
       const cy2=GY+30;
-      c.fillRect(o.lx,cy2-90*o.s,86*o.s,120*o.s);
-      c.fillRect(o.lx+20*o.s,cy2-150*o.s,70*o.s,66*o.s);
+      c.fillRect(o.lx,cy2-70*o.s,60*o.s,95*o.s);
+      c.fillRect(o.lx+15*o.s,cy2-115*o.s,48*o.s,48*o.s);
     }else if(o.type==='fence'){ /* diamond-mesh cage panel (frame_0057) */
       const fy=cam.y*1.12-40,fh=760,fw=340*o.s;
-      c.strokeStyle='rgba(3,5,7,.75)';c.lineWidth=5;
+      c.strokeStyle='rgba(3,5,7,.6)';c.lineWidth=5;
       for(let d2=-fw/2;d2<fw/2;d2+=36){
         c.beginPath();c.moveTo(o.lx+d2,fy);c.lineTo(o.lx+d2+150,fy+fh);c.stroke();
         c.beginPath();c.moveTo(o.lx+d2+150,fy);c.lineTo(o.lx+d2,fy+fh);c.stroke();
       }
     }else{
-      gearPath(o.lx,GY+150,150*o.s,12,T*.06,c);c.fill();
+      gearPath(o.lx,GY+170,105*o.s,12,T*.06,c);c.fill();
     }
   }
 }
@@ -1317,6 +1864,238 @@ function drawGearIcon(x,y,r,rot,col,hole){
     ctx.beginPath();ctx.arc(x,y,r*.4,0,7);ctx.fill();
     ctx.globalCompositeOperation='source-over';}
 }
+/* ============================== set dressing (frames 0046 / 0066 / 0058) ============================== */
+/* placement table: edit x values here, draw calls stay generic */
+const SET={
+  bulbs:[5880,8850],                                   /* hanging-bulb dens (rest spots) */
+  crates:[[6250,1],[12800,1.15],[15000,.9]],           /* [x,scale] tumbled crate mountains */
+  rugs:[6100,9800],                                    /* rug + dead TV */
+  scraps:[[1500,2100],[5750,6250],[8550,9150],[13600,14300]] /* [x1,x2] floor litter stretches */
+};
+
+/* ---- hanging filament-bulb den over a nest (frame_0046): 8-12 bulbs, varied drop, subtle sway ---- */
+function drawBulbCluster(x,m){
+  if(x<cam.x-320||x>cam.x+viewW+320)return;
+  const s0=seed;
+  seed=(Math.floor(x)*48271+1103)%2147483646+1;
+  const n=8+(rnd()*5|0),top=cam.y-8;
+  /* deterministic layout, tiny flat array rebuilt per frame (numbers only, no canvas alloc) */
+  const B=[];
+  for(let i=0;i<n;i++){
+    const dx=(rnd()-.5)*230,by=180+rnd()*175,r=5+rnd()*3.4,ph=rnd()*7;
+    const sw=Math.sin(T*.55+ph)*(1.5+(by-150)*.011); /* longer drop, wider sway */
+    B.push(x+dx,by,r,ph,x+dx+sw);
+  }
+  seed=s0;
+  /* cords: one batched stroke */
+  ctx.strokeStyle='rgba(8,10,12,.9)';ctx.lineWidth=2.2;ctx.beginPath();
+  for(let i=0;i<B.length;i+=5){
+    const ax=B[i],by=B[i+1],r=B[i+2],bx=B[i+4];
+    ctx.moveTo(ax,top);
+    ctx.quadraticCurveTo(ax+(bx-ax)*.35,top+(by-top)*.62,bx,by-r-8);
+  }
+  ctx.stroke();
+  /* sockets */
+  ctx.fillStyle='#0c0f12';
+  for(let i=0;i<B.length;i+=5)ctx.fillRect(B[i+4]-3,B[i+1]-B[i+2]-12,6,9);
+  /* amber glass ring (#e7e39e family) */
+  ctx.fillStyle='rgba(231,227,158,.4)';
+  for(let i=0;i<B.length;i+=5){
+    ctx.beginPath();ctx.arc(B[i+4],B[i+1],B[i+2]*1.35,0,7);ctx.fill();
+  }
+  /* cream filament cores, tiny independent flicker */
+  ctx.fillStyle='#fdf6d8';
+  for(let i=0;i<B.length;i+=5){
+    const f=.8+.2*Math.sin(T*9+B[i+3]*3),r=B[i+2];
+    ctx.fillRect(B[i+4]-1.5,B[i+1]-r*.62*f,3,r*1.24*f);
+  }
+  /* faint glass rims, one batched stroke (<= .14 law) */
+  ctx.strokeStyle='rgba(255,240,214,.10)';ctx.lineWidth=1;ctx.beginPath();
+  for(let i=0;i<B.length;i+=5){
+    ctx.moveTo(B[i+4]+B[i+2],B[i+1]);ctx.arc(B[i+4],B[i+1],B[i+2],0,7);
+  }
+  ctx.stroke();
+  /* nest below: warm pool + sagging pillow + leaning cushion */
+  floorPool(x,170,'255,216,150',.13,1);
+  contactShadow(x-10,50,.3);
+  contactShadow(x+42,20,.26);
+  ctx.fillStyle=mixRGB(m.plate,'rgb(190,178,152)',.16);
+  ctx.beginPath();
+  ctx.moveTo(x-56,GY);
+  ctx.quadraticCurveTo(x-60,GY-18,x-42,GY-24);
+  ctx.quadraticCurveTo(x-14,GY-30,x-8,GY-21);  /* center sag: slept-in */
+  ctx.quadraticCurveTo(x+2,GY-28,x+22,GY-22);
+  ctx.quadraticCurveTo(x+34,GY-17,x+30,GY);
+  ctx.closePath();ctx.fill();
+  /* seam stitches, batched */
+  ctx.strokeStyle='rgba(0,0,0,.38)';ctx.lineWidth=1.2;ctx.beginPath();
+  for(let i=0;i<7;i++){const sx2=x-46+i*11;ctx.moveTo(sx2,GY-8);ctx.lineTo(sx2+4,GY-10);}
+  ctx.stroke();
+  /* rim catch along the lit top edge */
+  ctx.strokeStyle='rgba(255,240,214,.12)';ctx.lineWidth=1.3;
+  ctx.beginPath();ctx.moveTo(x-46,GY-23);ctx.quadraticCurveTo(x-16,GY-29,x-9,GY-21);ctx.stroke();
+  /* cushion leaning on the pillow, worn tonal stripes (no saturation) */
+  ctx.save();ctx.translate(x+44,GY-2);ctx.rotate(-.34);
+  ctx.fillStyle=mixRGB(m.plate,'rgb(150,132,112)',.12);
+  roundRect(-16,-30,32,30,6);ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,.22)';
+  ctx.fillRect(-10,-28,6,26);ctx.fillRect(2,-28,6,26);
+  ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=1;
+  roundRect(-16,-30,32,30,6);ctx.stroke();
+  ctx.restore();
+}
+
+/* ---- tumbled crate mountain (frame_0066): 6-10 crates on a dark silhouette mass ---- */
+function drawCrateMountain(x,scale,m){
+  const R=210*scale;
+  if(x<cam.x-R-160||x>cam.x+viewW+R+160)return;
+  const s0=seed;
+  seed=(Math.floor(x)*69621+9973)%2147483646+1;
+  const n=6+(rnd()*5|0);
+  /* unlit heap behind: reads as more crates lost in the dark (silhouette-first) */
+  ctx.fillStyle=mixRGB(m.sil2,'rgb(0,0,0)',.45);
+  ctx.beginPath();
+  ctx.moveTo(x-R,GY+2);
+  ctx.lineTo(x-R*.72,GY-90*scale);
+  ctx.lineTo(x-R*.3,GY-150*scale);
+  ctx.lineTo(x-R*.05,GY-235*scale);
+  ctx.lineTo(x+R*.34,GY-165*scale);
+  ctx.lineTo(x+R*.66,GY-105*scale);
+  ctx.lineTo(x+R*.92,GY-40*scale);
+  ctx.lineTo(x+R,GY+2);
+  ctx.closePath();ctx.fill();
+  contactShadow(x,R*.8,.3);
+  /* slots [ox,row,rotBias,sizeMul]: base row settled, upper rows tumbled */
+  const SL=[[-.62,0,.10,1],[0,.02,-.05,1.12],[.64,0,.22,.92],[-.30,.9,-.30,.9],[.30,.95,.16,1],[-.02,1.85,.34,.84],[.62,1.05,-.42,.7],[-.86,.55,.55,.66],[.94,.35,-.2,.78],[.1,2.6,-.5,.6]];
+  for(let i=0;i<n;i++){
+    const sl=SL[i];
+    const w=(64+rnd()*30)*scale*sl[3],h=w*(.72+rnd()*.2);
+    const cx2=x+sl[0]*R*.62,cy2=GY-sl[1]*74*scale-h*.5-1;
+    const rot=sl[2]*(.7+rnd()*.6);
+    if(sl[1]<.1)contactShadow(cx2,w*.55,.22);
+    ctx.save();ctx.translate(cx2,cy2);ctx.rotate(rot);
+    const shade=clamp(.18+rnd()*.16-sl[1]*.03,0,.4);
+    ctx.fillStyle=mixRGB(mixRGB(m.sil2,'rgb(255,255,255)',.05),'rgb(0,0,0)',shade);
+    ctx.fillRect(-w/2,-h/2,w,h);
+    /* frame + slats, one batched stroke per crate */
+    ctx.strokeStyle='rgba(0,0,0,.42)';ctx.lineWidth=2.4;
+    ctx.strokeRect(-w/2+4,-h/2+4,w-8,h-8);
+    ctx.beginPath();
+    ctx.moveTo(-w/2+4,-h/2+4);ctx.lineTo(w/2-4,h/2-4);
+    ctx.moveTo(-w/2+h*.16,-h/2);ctx.lineTo(-w/2+h*.16,h/2);
+    ctx.moveTo(w/2-h*.16,-h/2);ctx.lineTo(w/2-h*.16,h/2);
+    ctx.stroke();
+    /* cracked plank gash */
+    ctx.fillStyle='rgba(0,0,0,.5)';
+    ctx.fillRect(-w*.12,-h*.5,w*.1,h*(.3+rnd()*.3));
+    /* faint warm catch on top edge only */
+    ctx.fillStyle=`rgba(255,240,214,${(.05+.06*(1-sl[1]*.3)).toFixed(3)})`;
+    ctx.fillRect(-w/2+3,-h/2,w-6,1.6);
+    ctx.restore();
+  }
+  seed=s0;
+}
+
+/* ---- worn fringed rug + dead hunched TV (frame_0058) ---- */
+function drawRugTV(x,m){
+  if(x<cam.x-280||x>cam.x+viewW+280)return;
+  /* rug lies on the floor plane: draw in a squashed frame */
+  contactShadow(x,120,.12);
+  ctx.save();ctx.translate(x,GY+10);ctx.scale(1,.30);
+  const rw=128,rh=64;
+  ctx.fillStyle=mixRGB(m.soil,'rgb(168,140,120)',.14);
+  roundRect(-rw,-rh,rw*2,rh*2,26);ctx.fill();
+  ctx.strokeStyle=mixRGB(m.soil,'rgb(0,0,0)',.4);ctx.lineWidth=7;
+  roundRect(-rw+12,-rh+12,rw*2-24,rh*2-24,18);ctx.stroke();
+  /* worn-through patches */
+  ctx.fillStyle='rgba(0,0,0,.22)';
+  ctx.beginPath();ctx.ellipse(-rw*.35,rh*.2,26,15,.4,0,7);ctx.fill();
+  ctx.beginPath();ctx.ellipse(rw*.42,-rh*.3,18,11,-.5,0,7);ctx.fill();
+  /* fringe threads both short ends, one batched stroke */
+  ctx.strokeStyle=mixRGB(m.soil,'rgb(190,168,140)',.20);ctx.lineWidth=2.4;
+  ctx.beginPath();
+  for(let i=0;i<12;i++){
+    const fy=-rh+8+i*(rh*2-16)/11,k=(i%3-1)*3;
+    ctx.moveTo(-rw,fy);ctx.lineTo(-rw-11,fy+k+3);
+    ctx.moveTo(rw,fy);ctx.lineTo(rw+11,fy-k+2);
+  }
+  ctx.stroke();
+  ctx.restore();
+  /* dead TV, hunched forward on the rug */
+  const tx=x+34;
+  contactShadow(tx,34,.32);
+  ctx.save();ctx.translate(tx,GY);ctx.rotate(-.045);
+  const col=mixRGB(m.sil2,'rgb(255,255,255)',.05);
+  ctx.fillStyle=col;
+  ctx.beginPath();                       /* shoulders narrower than base: a hunch */
+  ctx.moveTo(-34,0);ctx.lineTo(-30,-52);
+  ctx.quadraticCurveTo(-26,-64,-12,-66);
+  ctx.quadraticCurveTo(14,-68,24,-60);
+  ctx.quadraticCurveTo(31,-55,32,-44);ctx.lineTo(35,0);
+  ctx.closePath();ctx.fill();
+  /* dead glass: near-black with one lifted teal glint (#355154 family) */
+  ctx.fillStyle='#0a1f22';
+  roundRect(-24,-56,42,38,7);ctx.fill();
+  ctx.fillStyle='rgba(53,81,84,.5)';
+  ctx.beginPath();ctx.moveTo(-20,-52);ctx.lineTo(-6,-52);ctx.lineTo(-16,-30);ctx.lineTo(-20,-34);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='rgba(0,0,0,.55)';ctx.lineWidth=2;
+  roundRect(-24,-56,42,38,7);ctx.stroke();
+  /* knobs + vent slits */
+  ctx.fillStyle='rgba(0,0,0,.4)';
+  ctx.beginPath();ctx.arc(27,-44,3.4,0,7);ctx.arc(27,-33,2.6,0,7);ctx.fill();
+  for(let i=0;i<3;i++)ctx.fillRect(22,-24+i*5,10,2);
+  /* stub feet */
+  ctx.fillStyle='#0c0f12';
+  ctx.fillRect(-30,-3,10,5);ctx.fillRect(22,-3,10,5);
+  /* rabbit-ear antenna, one arm snapped */
+  ctx.strokeStyle=col;ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(-4,-66);ctx.lineTo(-18,-96);ctx.moveTo(0,-66);ctx.lineTo(16,-88);ctx.lineTo(24,-84);ctx.stroke();
+  /* rim highlight along the top shell */
+  ctx.strokeStyle='rgba(255,240,214,.11)';ctx.lineWidth=1.4;
+  ctx.beginPath();ctx.moveTo(-26,-62);ctx.quadraticCurveTo(-12,-66,8,-66);ctx.stroke();
+  /* dead cable trailing off the rug */
+  ctx.strokeStyle='rgba(8,10,12,.8)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(30,-6);ctx.quadraticCurveTo(52,4,74,2);ctx.stroke();
+  ctx.restore();
+}
+
+/* ---- floor litter: thread curls + paper scraps (frame_0046 floor), 52px cells, seeded per cell ---- */
+function drawFloorScraps(x1,x2,m){
+  const a=Math.max(x1,cam.x-40),b=Math.min(x2,cam.x+viewW+40);
+  if(a>=b)return;
+  const s0=seed;
+  const c0=Math.ceil(a/52),c1=Math.floor(b/52);
+  /* each cell consumes a fixed rnd budget: [gate,tx,ty,r] thread, [gate,px,py,sz,rot] paper */
+  /* pass 1: thread curls, one batched stroke */
+  ctx.strokeStyle='rgba(205,196,172,.15)';ctx.lineWidth=1.2;
+  ctx.beginPath();
+  for(let c=c0;c<=c1;c++){
+    seed=(c*48271+1103)%2147483646+1;
+    if(rnd()<.5){
+      const tx=c*52+rnd()*40,ty=GY+3+rnd()*12,r2=3+rnd()*4.5;
+      ctx.moveTo(tx-r2,ty);
+      ctx.quadraticCurveTo(tx-r2*.2,ty-r2*1.5,tx+r2*.5,ty-r2*.1);
+      ctx.quadraticCurveTo(tx+r2*1.1,ty+r2*.8,tx+r2*.3,ty+r2*.3);
+    }else{rnd();rnd();rnd();}
+  }
+  ctx.stroke();
+  /* pass 2: paper scraps, flat rotated quads hugging the walk line */
+  for(let c=c0;c<=c1;c++){
+    seed=(c*48271+1103)%2147483646+1;
+    rnd();rnd();rnd();rnd(); /* skip thread budget */
+    if(rnd()<.55){
+      const px3=c*52+8+rnd()*36,py=GY+2+rnd()*12,sz=2.6+rnd()*3.2,ro=rnd()*Math.PI;
+      contactShadow(px3,sz*1.5,.07);
+      const ca=Math.cos(ro)*sz,sa=Math.sin(ro)*sz*.34; /* squashed to the floor plane */
+      ctx.fillStyle='rgba(211,203,180,.26)';
+      ctx.beginPath();
+      ctx.moveTo(px3-ca,py-sa);ctx.lineTo(px3+sa*1.6,py-ca*.3);
+      ctx.lineTo(px3+ca,py+sa);ctx.lineTo(px3-sa*1.6,py+ca*.3);
+      ctx.closePath();ctx.fill();
+    }
+  }
+  seed=s0;
+}
 
 /* ============================== lights ============================== */
 function collectLights(){
@@ -1331,6 +2110,10 @@ function collectLights(){
   /* scrap-mites carry a faint red glow: an enemy the player cannot see is unfair, not scary */
   for(const bug of bugs)if(vis(bug.x,80))L.push({x:bug.x,y:bug.y-14,r:46,c:'255,90,80',a:.32,flick:.25});
   for(const sg of signs)if(vis(sg.x,80))L.push({x:sg.x,y:GY-46,r:70,c:'255,216,150',a:.22,flick:.04});
+  for(const bx of SET.bulbs)if(vis(bx,340)){
+    L.push({x:bx,y:250,r:200,c:'255,222,160',a:.8,flick:.07});
+    L.push({x:bx,y:GY-14,r:130,c:'255,216,150',a:.45,flick:.07});
+  }
   for(const f of flags)if(f.done&&vis(f.x,140))L.push({x:f.x,y:GY-62,r:135,c:'255,216,150',a:.8,flick:.12});
   for(const sh of shrines)if(vis(sh.x,110))L.push({x:sh.x,y:GY-56,r:105,c:'123,224,173',a:.7,flick:.05});
   // player headlamp (projected through the lane transform)
@@ -1381,7 +2164,13 @@ function drawGroundPersp(p,m){
   ctx.moveTo(px(xa,sB),yB);ctx.lineTo(px(xb,sB),yB);
   ctx.lineTo(px(xb,sF),yF);ctx.lineTo(px(xa,sF),yF);
   ctx.closePath();ctx.fill();
+  ctx.globalAlpha=.25;
+  ctx.fillStyle=TEX.woodV;
+  ctx.fill();
+  ctx.globalAlpha=1;
+
   /* wall/floor junction: plate band + faint rim that survives dark stretches */
+
   ctx.fillStyle=m.plate;ctx.fillRect(px(xa,sB),yB-3,(xb-xa)*sB,6);
   ctx.fillStyle=mixRGB(m.edge,'rgb(0,0,0)',.5);ctx.fillRect(px(xa,sB),yB-4,(xb-xa)*sB,1.8);
   ctx.fillStyle='rgba(255,240,214,.045)';ctx.fillRect(px(xa,sB),yB-2,(xb-xa)*sB,1.2);
@@ -1411,7 +2200,16 @@ function drawGroundPersp(p,m){
   }
 }
 function render(){
+  if(introSeq.on&&introSeq.shot<3){
+    drawIntro(moodAt(120));
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.globalCompositeOperation='lighten';
+    ctx.fillStyle='#0c1719';ctx.fillRect(0,0,innerWidth,innerHeight);
+    ctx.globalCompositeOperation='source-over';
+    return;
+  }
   const m=moodAt(cam.x+viewW/2);
+
   const shx=shakeT>0?(rnd()-.5)*9*shakeT:0;
   const shy=shakeT>0?(rnd()-.5)*7*shakeT:0;
   /* camera dollies in as Cluu steps into the depth */
@@ -1425,6 +2223,13 @@ function render(){
   const sky=ctx.createLinearGradient(0,cam.y,0,cam.y+VH);
   sky.addColorStop(0,m.skyT);sky.addColorStop(.55,m.skyB);sky.addColorStop(1,m.skyT);
   ctx.fillStyle=sky;ctx.fillRect(cam.x-10,cam.y-10,viewW+20,VH+20);
+  const gpx=cam.x*.45;
+  ctx.globalAlpha=.14;
+  ctx.translate(gpx,0);
+  ctx.fillStyle=TEX.grime;
+  ctx.fillRect(cam.x-10-gpx,cam.y+56,viewW+20,(GY-26)-(cam.y+56));
+  ctx.translate(-gpx,0);
+  ctx.globalAlpha=1;
 
   /* far haze skyline pf .09 (atmospheric perspective) */
   setW(.09,.16);
@@ -1739,12 +2544,21 @@ function render(){
       }
     }
   }
+  /* decor creatures: dolls, marionettes */
+  drawDecorCreatures(m);
+
   /* faint ember glow in foundry (restrained warm accent) */
   if(m.lvl===3){
     const mg=ctx.createLinearGradient(0,GY+40,0,GY+200);
     mg.addColorStop(0,'rgba(255,120,40,0)');mg.addColorStop(1,'rgba(255,120,40,.13)');
     ctx.fillStyle=mg;ctx.fillRect(cam.x-10,GY+40,viewW+20,200);
   }
+
+  /* set dressing */
+  for(const bx of SET.bulbs)drawBulbCluster(bx,m);
+  for(const c of SET.crates)drawCrateMountain(c[0],c[1],m);
+  for(const r of SET.rugs)drawRugTV(r,m);
+  for(const sp of SET.scraps)drawFloorScraps(sp[0],sp[1],m);
 
   /* lamps (fixtures) */
   for(const lp of lamps){
@@ -1931,35 +2745,10 @@ function render(){
     ctx.beginPath();ctx.arc(c.x-2,c.y+bob-3,1.6,0,7);ctx.fill();
   }
 
-  /* scrap-mites */
+  /* string-puppet crawlers */
   for(const bug of bugs){
     if(bug.x<cam.x-60||bug.x>cam.x+viewW+60)continue;
-    const jx=REDUCED?0:(rnd()-.5)*1.4,jy=REDUCED?0:(rnd()-.5)*1;
-    const hop=Math.abs(Math.sin(T*7+bug.x1))*4;
-    const bx=bug.x+jx,by=bug.y-12-hop+jy;
-    contactShadow(bug.x,14-hop*.8,.32);
-    ctx.fillStyle='#2a2d33';
-    ctx.beginPath();ctx.ellipse(bx,by,16,12,0,0,7);ctx.fill();
-    ctx.fillStyle='#1c1f24';
-    ctx.beginPath();ctx.ellipse(bx-5*bug.dir,by+2,9,7,0,0,7);ctx.fill();
-    ctx.strokeStyle='rgba(0,0,0,.5)';ctx.lineWidth=1.4;
-    ctx.beginPath();ctx.arc(bx,by-2,9,Math.PI*.9,Math.PI*.1,true);ctx.stroke();
-    // wind-up key
-    ctx.save();ctx.translate(bx-10*bug.dir,by-10);ctx.rotate(T*3*bug.dir);
-    ctx.strokeStyle='#8a6a33';ctx.lineWidth=2.4;
-    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-9);ctx.stroke();
-    ctx.beginPath();ctx.arc(-3.4,-11,3.4,0,7);ctx.arc(3.4,-11,3.4,0,7);ctx.stroke();
-    ctx.restore();
-    ctx.strokeStyle='#15181c';ctx.lineWidth=2.2;
-    for(let l=0;l<3;l++){
-      const lw=Math.sin(T*14+l*2.1)*3;
-      ctx.beginPath();ctx.moveTo(bx-8+l*8,by+8);ctx.lineTo(bx-8+l*8+lw,bug.y);ctx.stroke();}
-    ctx.fillStyle='rgba(255,90,80,.2)';
-    ctx.beginPath();ctx.arc(bx+9*bug.dir,by-3,9,0,7);ctx.fill();
-    ctx.fillStyle='#ff5a50';
-    ctx.beginPath();ctx.arc(bx+9*bug.dir,by-3,3,0,7);ctx.fill();
-    ctx.fillStyle='#3a0d0a';
-    ctx.beginPath();ctx.arc(bx+10*bug.dir,by-3,1.2,0,7);ctx.fill();
+    drawMite(bug,m);
   }
 
   /* front-lane hunters */
@@ -2037,7 +2826,7 @@ function render(){
   if(REDUCED){
     setW(1.35,1.12);drawFgOcc(ctx,cam.x*1.35);setW(1);
   }else{
-    const fq=TOUCHY?4:3,k2=s*zk/fq;
+    const fq=4,k2=s*zk/fq;
     fctx.setTransform(1,0,0,1,0,0);
     fctx.clearRect(0,0,fgBlur.width,fgBlur.height);
     fctx.setTransform(k2,0,0,k2,((-cam.x*1.35+shx)*s*zk+azx)/fq,((-cam.y*1.12+shy)*s*zk+azy)/fq);
@@ -2140,6 +2929,7 @@ function render(){
   ctx.globalCompositeOperation='lighten';
   ctx.fillStyle='#0a1113';ctx.fillRect(0,0,W,H);
   ctx.globalCompositeOperation='source-over';
+  if(introSeq.on)drawIntroWake();
 }
 /* ============================== boss drawing ============================== */
 function drawBoss(bs,m){
@@ -2281,6 +3071,69 @@ function drawBoss(bs,m){
   ctx.restore();
 }
 
+/* string-puppet crawler: blindfolded doll-child on all fours (LN3 Backstage grunts) */
+const _mjPeg=new Float32Array(8); /* elbow joints, hoisted: no per-frame alloc */
+function drawMite(bug,m){
+  const jx=REDUCED?0:(rnd()-.5)*1.4, jy=REDUCED?0:(rnd()-.5)*1;
+  const s=Math.sin(T*6.5+bug.x1), st=Math.sign(s)*Math.pow(Math.abs(s),.35); /* snapped: limbs slam, then hold */
+  const hop=Math.abs(s)*3.5, d=bug.dir;
+  const bx=bug.x+jx+st*1.2*d, by=bug.y-14-hop+jy;      /* spine line */
+  const hx=bx+13*d, hy=by+2.5-hop*.3;                  /* head hangs low at the front */
+  contactShadow(bug.x,17-hop*.7,.32);
+  /* marionette strings rising off head and hips, faint, swaying out of sync */
+  ctx.strokeStyle='rgba(255,240,214,.10)';ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(hx,hy-7);
+  ctx.quadraticCurveTo(hx+Math.sin(T*1.6+bug.x1)*7,by-78,hx+Math.sin(T*.8+bug.x1)*12,by-155);
+  ctx.moveTo(bx-9*d,by-5);
+  ctx.quadraticCurveTo(bx-9*d+Math.sin(T*1.9+bug.x2)*6,by-72,bx-9*d+Math.sin(T*.7+bug.x2)*11,by-155);
+  ctx.stroke();
+  /* four jointed wooden limbs: arms forward, legs back, alternating pairs, one batched stroke */
+  ctx.lineCap='round';ctx.strokeStyle='#0a1f22';ctx.lineWidth=2.8;
+  ctx.beginPath();
+  for(let l=0;l<4;l++){
+    const arm=l<2, sw=st*(l%2?4.5:-4.5);
+    const sx=bx+(arm?7:-8)*d, sy=by+(arm?0:-1);
+    const fx=sx+(arm?5:-4)*d+sw*d, fy=bug.y;
+    const ex=(sx+fx)/2+(arm?1.5:-1.5)*d, ey=(sy+fy)/2-2.5-Math.abs(sw)*.35;
+    ctx.moveTo(sx,sy);ctx.lineTo(ex,ey);ctx.lineTo(fx,fy);
+    _mjPeg[l*2]=ex;_mjPeg[l*2+1]=ey;
+  }
+  ctx.stroke();ctx.lineCap='butt';
+  /* sagging cloth torso: near-black, teal-cast top plane, belly droop */
+  ctx.fillStyle='#0a1f22';
+  ctx.beginPath();ctx.ellipse(bx,by,12,6.5,-.1*d,0,7);ctx.fill();
+  ctx.beginPath();ctx.ellipse(bx-2*d,by+4,7,3,0,0,7);ctx.fill();
+  ctx.fillStyle='#16383b';
+  ctx.beginPath();ctx.ellipse(bx-2*d,by-2.5,9,3.5,-.12*d,0,7);ctx.fill();
+  /* wooden joint pegs at the elbows/knees, one batched fill */
+  ctx.beginPath();
+  for(let l=0;l<4;l++){ctx.moveTo(_mjPeg[l*2]+1.6,_mjPeg[l*2+1]);ctx.arc(_mjPeg[l*2],_mjPeg[l*2+1],1.6,0,7);}
+  ctx.fill();
+  /* head + chunky hair twists */
+  ctx.fillStyle='#0a1f22';
+  ctx.beginPath();ctx.arc(hx,hy,6.5,0,7);ctx.fill();
+  ctx.beginPath();ctx.arc(hx-4*d,hy-5,3,0,7);ctx.arc(hx+d,hy-6.5,2.6,0,7);ctx.arc(hx-7*d,hy-2,2.2,0,7);ctx.fill();
+  /* cloth blindfold: lifted band, sagging knot tails flapping behind the head */
+  ctx.fillStyle='#355154';
+  roundRect(hx-7,hy-2.6,14,4.4,2);ctx.fill();
+  ctx.strokeStyle='#355154';ctx.lineWidth=1.6;
+  ctx.beginPath();
+  ctx.moveTo(hx-6*d,hy-1);ctx.quadraticCurveTo(hx-11*d,hy+1+Math.sin(T*9+bug.x1)*1.5,hx-14*d,hy-1+Math.sin(T*7+bug.x1)*2);
+  ctx.moveTo(hx-6*d,hy+.4);ctx.quadraticCurveTo(hx-10*d,hy+4,hx-13*d,hy+3+Math.sin(T*8+bug.x1)*2);
+  ctx.stroke();
+  /* hand stitches across the band: worn, crooked */
+  ctx.strokeStyle='rgba(10,31,34,.8)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(hx-4,hy-.4);ctx.lineTo(hx-2,hy-.2);ctx.moveTo(hx+1,hy-.3);ctx.lineTo(hx+3,hy-.5);ctx.stroke();
+  /* red danger accent: glow seeping through the cloth (gameplay readability) */
+  ctx.fillStyle='rgba(255,90,80,.18)';
+  ctx.beginPath();ctx.arc(hx+2*d,hy-.4,7,0,7);ctx.fill();
+  ctx.fillStyle='#ff5a50';
+  ctx.beginPath();ctx.arc(hx+2.5*d,hy-.4,1.6,0,7);ctx.fill();
+  /* rim highlight along the spine, capped */
+  ctx.strokeStyle='rgba(255,240,214,.13)';ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.arc(bx,by+1,11.5,Math.PI*1.12,Math.PI*1.88);ctx.stroke();
+}
 /* ============================== lane-hunter ============================== */
 function drawHunter(h){
   if(h.x<cam.x-80||h.x>cam.x+viewW+80)return;
@@ -2334,7 +3187,7 @@ function drawCluu(){
   if(P.deathT>.55)return;
   const x=P.x,y=P.y;
   ctx.fillStyle='rgba(0,0,0,.55)';
-  ctx.beginPath();ctx.ellipse(x,floorBelow(x,y),26*P.sx,6.5,0,0,7);ctx.fill();
+  ctx.beginPath();ctx.ellipse(x,floorBelow(x,y),24*P.sx,6,0,0,7);ctx.fill();
   ctx.save();
   ctx.translate(x,y);
   ctx.rotate(clamp(P.vx*.00035,-.09,.09));
@@ -2342,71 +3195,90 @@ function drawCluu(){
   const runb=P.onGround&&Math.abs(P.vx)>40?Math.abs(Math.sin(P.runPh))*3:0;
   ctx.translate(0,-runb);
   const step=P.onGround&&Math.abs(P.vx)>40?Math.sin(P.runPh)*5:0;
-  /* legs: stubby rounded */
-  ctx.fillStyle='#b85e42';
-  roundRect(-13+step,-9,10,10,4);ctx.fill();
-  roundRect(3-step,-9,10,10,4);ctx.fill();
-  /* rear arm nub */
-  ctx.fillStyle='#c4674a';
-  roundRect(-24,-26,8,12,4);ctx.fill();
-  /* body: terracotta rounded square */
-  ctx.fillStyle='#d97757';
-  roundRect(-20,-44,40,38,9);ctx.fill();
-  const bg=ctx.createLinearGradient(0,-44,0,-6);
-  bg.addColorStop(0,'rgba(255,235,210,.16)');bg.addColorStop(.6,'rgba(0,0,0,0)');bg.addColorStop(1,'rgba(60,20,10,.22)');
-  ctx.fillStyle=bg;roundRect(-20,-44,40,38,9);ctx.fill();
-  /* corner rivets */
-  ctx.fillStyle='#8a6a33';
-  [[-15,-39],[15,-39],[-15,-11],[15,-11]].forEach(([rx,ry])=>{ctx.beginPath();ctx.arc(rx,ry,1.6,0,7);ctx.fill();});
-  /* diagonal strap + gauge */
-  ctx.strokeStyle='#7a4a30';ctx.lineWidth=4.5;
-  ctx.beginPath();ctx.moveTo(-19,-40);ctx.lineTo(19,-12);ctx.stroke();
-  ctx.fillStyle='#e8c06a';ctx.beginPath();ctx.arc(9,-18,4.4,0,7);ctx.fill();
-  ctx.strokeStyle='#5a3a20';ctx.lineWidth=1.2;
-  ctx.beginPath();ctx.arc(9,-18,4.4,0,7);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(9,-18);ctx.lineTo(11.4,-20.4);ctx.stroke();
-  /* front arm nub */
-  ctx.fillStyle='#d97757';
-  roundRect(16,-28,9,13,4.5);ctx.fill();
-  /* face: square camera eyes */
+  ctx.lineCap='round';
+  /* spindly stick legs + tiny foot nubs */
+  ctx.strokeStyle='#2e1812';ctx.lineWidth=2.6;
+  ctx.beginPath();ctx.moveTo(-5,-9);ctx.lineTo(-6-step,-.5);ctx.moveTo(5,-9);ctx.lineTo(6+step,-.5);ctx.stroke();
+  ctx.fillStyle='#2e1812';
+  roundRect(-8.5-step,-2.2,5,2.4,1.2);ctx.fill();roundRect(3.5+step,-2.2,5,2.4,1.2);ctx.fill();
+  /* rear stick arm */
+  ctx.strokeStyle='#4a2418';ctx.lineWidth=2.3;
+  ctx.beginPath();ctx.moveTo(-12,-24);ctx.lineTo(-15+step*.5,-13);ctx.stroke();
+  ctx.fillStyle='#4a2418';ctx.beginPath();ctx.arc(-15+step*.5,-12.4,1.7,0,7);ctx.fill();
+  /* tiny body: terracotta only where top-light hits, base sunk to #6b3a2c */
+  const bg=ctx.createLinearGradient(0,-32,0,-8);
+  bg.addColorStop(0,'#d97757');bg.addColorStop(.38,'#a35540');bg.addColorStop(1,'#6b3a2c');
+  ctx.fillStyle=bg;roundRect(-14,-32,28,24,7);ctx.fill();
+  ctx.strokeStyle='rgba(255,240,214,.13)';ctx.lineWidth=1.2;
+  ctx.beginPath();ctx.moveTo(13.6,-27);ctx.lineTo(13.6,-14);ctx.stroke();
+  /* corner rivets, dim */
+  ctx.fillStyle='#5b4a2a';
+  [[-10,-27],[10,-27],[-10,-12],[10,-12]].forEach(([rx,ry])=>{ctx.beginPath();ctx.arc(rx,ry,1.3,0,7);ctx.fill();});
+  /* rope sling: two knots + fray tick */
+  ctx.strokeStyle='#4d3823';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(-13,-28);ctx.lineTo(13,-12);ctx.stroke();
+  ctx.fillStyle='#4d3823';
+  ctx.beginPath();ctx.arc(-4,-22.4,2,0,7);ctx.fill();ctx.beginPath();ctx.arc(6,-16.2,1.6,0,7);ctx.fill();
+  ctx.strokeStyle='rgba(255,240,214,.1)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(-4,-22.4);ctx.lineTo(-6,-19.6);ctx.stroke();
+  /* stitched patch, worn */
+  ctx.fillStyle='rgba(0,0,0,.2)';roundRect(-12,-16,7,6,1.5);ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-12,-14.5);ctx.lineTo(-13.4,-14);ctx.moveTo(-12,-12);ctx.lineTo(-13.4,-11.6);ctx.moveTo(-6.6,-15);ctx.lineTo(-5.2,-14.6);
+  ctx.strokeStyle='rgba(255,240,214,.12)';ctx.stroke();
+  /* front stick arm */
+  ctx.strokeStyle='#7a4230';ctx.lineWidth=2.3;
+  ctx.beginPath();ctx.moveTo(12,-24);ctx.lineTo(15-step*.5,-13);ctx.stroke();
+  ctx.fillStyle='#7a4230';ctx.beginPath();ctx.arc(15-step*.5,-12.4,1.7,0,7);ctx.fill();
+  /* square camera eyes (identity), low under the brim */
   const lean=P.onGround?clamp(Math.abs(P.vx)*.008,0,2.2):1;
-  const eh=P.blink>0?2:11;
+  const eh=P.blink>0?2:9;
   const eyeSq=(ex)=>{
-    ctx.fillStyle='#171017';
-    roundRect(ex-5.5+lean,-36-eh/2+5.5,11,eh,3);ctx.fill();
+    ctx.fillStyle='#140d14';roundRect(ex-4.5+lean,-20-eh/2,9,eh,2.5);ctx.fill();
     if(P.blink<=0){
-      ctx.strokeStyle='#e8a06a';ctx.lineWidth=1.3;
-      ctx.beginPath();ctx.arc(ex+lean,-30.5,3.1,0,7);ctx.stroke();
-      ctx.fillStyle='#ffe9c9';
-      ctx.beginPath();ctx.arc(ex+lean-1.2,-32,1.1,0,7);ctx.fill();
+      ctx.strokeStyle='rgba(232,160,106,.95)';ctx.lineWidth=1.3;
+      ctx.beginPath();ctx.arc(ex+lean,-20,2.6,0,7);ctx.stroke();
+      ctx.fillStyle='#ffe9c9';ctx.beginPath();ctx.arc(ex+lean-1,-21.1,1,0,7);ctx.fill();
     }
   };
-  eyeSq(-1);eyeSq(12);
-  /* mouth slot */
-  ctx.fillStyle='#8a4630';
-  roundRect(3+lean,-20,7,2.4,1.2);ctx.fill();
-  /* goggles perched on top */
-  ctx.strokeStyle='#5a3a20';ctx.lineWidth=3.4;
-  ctx.beginPath();ctx.moveTo(-19,-45);ctx.lineTo(19,-45);ctx.stroke();
-  const gog=(gx)=>{
-    ctx.fillStyle='#8a6a33';
-    ctx.beginPath();ctx.arc(gx,-48,6.4,0,7);ctx.fill();
-    ctx.fillStyle='#274a52';
-    ctx.beginPath();ctx.arc(gx,-48,4.2,0,7);ctx.fill();
-    ctx.fillStyle='rgba(190,240,240,.7)';
-    ctx.beginPath();ctx.arc(gx-1.4,-49.4,1.4,0,7);ctx.fill();
-    ctx.strokeStyle='#5a3a20';ctx.lineWidth=1.2;
-    ctx.beginPath();ctx.arc(gx,-48,6.4,0,7);ctx.stroke();
-  };
-  gog(-6);gog(8);
-  /* headlamp */
-  ctx.fillStyle='#8a6a33';
-  roundRect(15,-52,8,7,2);ctx.fill();
-  ctx.fillStyle='#ffd489';
-  ctx.beginPath();ctx.arc(21.5,-48.5,2.6+Math.sin(T*9)*.3,0,7);ctx.fill();
+  eyeSq(-3);eyeSq(8);
+  ctx.fillStyle='#57281a';roundRect(2.5+lean,-13.5,6,2,1);ctx.fill();
+  /* brim shadow across the upper face */
+  ctx.fillStyle='rgba(5,13,15,.45)';ctx.fillRect(-14,-32,28,9);
+  /* HUGE upturned-jug helmet: funnel body, teal-black metal */
+  const hg=ctx.createLinearGradient(0,-47,0,-25);
+  hg.addColorStop(0,'#355154');hg.addColorStop(.45,'#16383b');hg.addColorStop(1,'#0a1f22');
+  ctx.fillStyle=hg;
+  ctx.beginPath();ctx.moveTo(-21,-26);ctx.lineTo(-11,-46);ctx.lineTo(11,-47);ctx.lineTo(22,-25);ctx.closePath();ctx.fill();
+  /* jug base disc on top + dents + rivets */
+  ctx.fillStyle='#0e2629';ctx.beginPath();ctx.ellipse(0,-46.5,11,3,0,0,7);ctx.fill();
+  ctx.strokeStyle='rgba(10,31,34,.9)';ctx.lineWidth=1.4;
+  ctx.beginPath();ctx.arc(-5,-36,4,Math.PI*1.2,Math.PI*1.8);ctx.arc(7,-31,3,Math.PI*.2,Math.PI*.8);ctx.stroke();
+  ctx.fillStyle='#355154';
+  [[-13,-30],[0,-31],[14,-29]].forEach(([rx,ry])=>{ctx.beginPath();ctx.arc(rx,ry,1.2,0,7);ctx.fill();});
+  /* jug handle, rear side */
+  ctx.strokeStyle='#16383b';ctx.lineWidth=3.2;
+  ctx.beginPath();ctx.moveTo(-14,-43);ctx.quadraticCurveTo(-24,-40,-16,-31);ctx.stroke();
+  /* droopy worn brim, sags at the back */
+  ctx.fillStyle='#16383b';
+  ctx.beginPath();
+  ctx.moveTo(-26,-22.5);ctx.quadraticCurveTo(-14,-30,0,-29.5);ctx.quadraticCurveTo(14,-30,25,-24);
+  ctx.lineTo(24,-21);ctx.quadraticCurveTo(12,-26.5,0,-26);ctx.quadraticCurveTo(-13,-26.5,-24,-19.5);
+  ctx.closePath();ctx.fill();
+  /* rim light, one pass */
+  ctx.strokeStyle='rgba(255,240,214,.14)';ctx.lineWidth=1.4;
+  ctx.beginPath();
+  ctx.moveTo(21,-26);ctx.lineTo(10.5,-46);
+  ctx.moveTo(-9,-49);ctx.ellipse(0,-46.5,11,3,0,Math.PI*1.15,Math.PI*1.85);
+  ctx.moveTo(0,-29.5);ctx.quadraticCurveTo(14,-30,24.4,-24.4);
+  ctx.stroke();
+  /* cream lamp mounted on helmet front */
+  ctx.fillStyle='#355154';roundRect(12.5,-42,5,4.5,1.2);ctx.fill();
+  ctx.fillStyle='rgba(253,246,216,.15)';ctx.beginPath();ctx.arc(16.5,-39.5,5.5+Math.sin(T*9)*.4,0,7);ctx.fill();
+  ctx.fillStyle='#fdf6d8';ctx.beginPath();ctx.arc(16.5,-39.5,2.2+Math.sin(T*9)*.25,0,7);ctx.fill();
+  ctx.strokeStyle='#e7e39e';ctx.lineWidth=1;ctx.beginPath();ctx.arc(16.5,-39.5,3.1,0,7);ctx.stroke();
   ctx.restore();
 }
-
 /* ============================== main loop ============================== */
 updHUD();
 let last=performance.now();
