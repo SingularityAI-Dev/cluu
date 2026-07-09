@@ -10,6 +10,8 @@
   html,body{height:100%;margin:0;overflow:hidden;background:var(--ink)}
   #root{position:fixed;inset:0;font-family:var(--sans);color:var(--paper)}
   canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #game{transition:transform 1.6s cubic-bezier(.4,0,.2,1);will-change:transform}
+  #game.tilt{transform:rotate(1.7deg) scale(1.08) translateY(-1%)}
   .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     background:rgba(6,10,16,.78);backdrop-filter:blur(7px);z-index:30;
     opacity:0;pointer-events:none;transition:opacity .5s ease}
@@ -191,7 +193,7 @@
         On a dusty workbench, a small clay-and-brass automaton called <b>Cluu</b> blinks awake:
         the last machine still running. Five wardens hold the works. Learn the Keeper's words. Relight them all.</p>
       <div class="keys">
-        <b>&#8592;</b> <b>&#8594;</b> or <b>A</b> <b>D</b> run &nbsp;&middot;&nbsp; <b>Space</b> jump (hold = higher) &nbsp;&middot;&nbsp; <b>E</b> talk &nbsp;&middot;&nbsp; <b>1&ndash;3</b> answer
+        <b>&#8592;</b> <b>&#8594;</b> or <b>A</b> <b>D</b> run &nbsp;&middot;&nbsp; <b>Space</b> jump (hold = higher) &nbsp;&middot;&nbsp; <b>&#8593;</b> <b>&#8595;</b> step deeper / nearer &nbsp;&middot;&nbsp; <b>E</b> talk &nbsp;&middot;&nbsp; <b>1&ndash;3</b> answer
       </div>
       <button class="btn" id="startbtn">&#9881;&nbsp; wind the mainspring</button>
     </div>
@@ -457,9 +459,8 @@ function kd(e){
     case 'ArrowRight':case 'd':case 'D':keys.right=true;break;
     case ' ':
       if(!keys.jump)jumpPressed=true;keys.jump=true;break;
-    case 'ArrowUp':case 'w':case 'W':
-      if(!keys.jump)jumpPressed=true;keys.jump=true;fwdPressed=true;break;
-    case 'ArrowDown':case 's':case 'S':lanePressed=true;break;
+    case 'ArrowUp':case 'w':case 'W':lanePressed=true;break;
+    case 'ArrowDown':case 's':case 'S':fwdPressed=true;break;
     case 'e':case 'E':case 'Enter':interactPressed=true;break;
   }
 }
@@ -467,7 +468,7 @@ function ku(e){
   switch(e.key){
     case 'ArrowLeft':case 'a':case 'A':keys.left=false;break;
     case 'ArrowRight':case 'd':case 'D':keys.right=false;break;
-    case ' ':case 'ArrowUp':case 'w':case 'W':keys.jump=false;break;
+    case ' ':keys.jump=false;break;
   }
 }
 addEventListener('keydown',kd);addEventListener('keyup',ku);
@@ -486,8 +487,8 @@ if(TOUCHY){
   bind('tr',()=>keys.right=true,()=>keys.right=false);
   bind('tj',()=>{if(!keys.jump)jumpPressed=true;keys.jump=true;},()=>keys.jump=false);
   bind('ti',()=>{interactPressed=true;});
-  bind('td',()=>{lanePressed=true;});
-  bind('tf',()=>{fwdPressed=true;});
+  bind('td',()=>{fwdPressed=true;});
+  bind('tf',()=>{lanePressed=true;});
 }
 
 /* ============================== levels & palettes ============================== */
@@ -827,7 +828,7 @@ const bossState=ARENA.map((a,i)=>({i,hp:3,php:3,phase:0,state:'wait',t:0,x:a.cx+
 // state: wait | intro | duel | dying | dead
 
 /* ============================== player & globals ============================== */
-const P={x:120,y:GY,vx:0,vy:0,dir:1,onGround:false,groundRef:null,lane:0,laneT:0,
+const P={x:120,y:GY,vx:0,vy:0,dir:1,onGround:false,groundRef:null,lane:0,laneT:0,zl:0,zlT:0,
   coyote:0,buffer:0,sx:1,sy:1,sVel:0,blink:0,nextBlink:2.5,runPh:0,deathT:0};
 let seenDepthHint=false;
 function zoneAtX(x){return depthZones.find(z=>x>=z.x1&&x<=z.x2)||null;}
@@ -1267,6 +1268,7 @@ function pips(el,n,cls,max){
 }
 function startBossIntro(bs){
   activeBoss=bs;state='cine';
+  canvas.classList.add('tilt');
   keys.left=keys.right=keys.jump=false;
   bs.state='intro';bs.t=0;
   letterbox(true);sfx.reveal();
@@ -1324,6 +1326,7 @@ function duelKey(e){
 }
 function duelLost(bs){
   duelEl.classList.remove('on');letterbox(false);
+  canvas.classList.remove('tilt');
   bs.state='wait';bs.hp=3;bs.php=3;bs.phase=0;
   activeBoss=null;state='play';
   P.x=ARENA[bs.i].trig-260;P.y=GY;P.vx=0;P.vy=0;
@@ -1338,6 +1341,7 @@ function bossDefeated(bs){
     bs.state='dead';bs.dead=true;updHUD();
     gates[bs.i].opening=true;sfx.gate();
     letterbox(false);
+    canvas.classList.remove('tilt');
     chapterCard(LNAMES[bs.i][0]+' COMPLETE',B.win.split('.')[0]+'.',3800);
     toast('✔ committed: "'+LNAMES[bs.i][1].toLowerCase()+' — cleared"','warden defeated · gate open');
     sfx.commit();
@@ -1419,17 +1423,23 @@ function update(dt){
   /* depth lane switching: ↓/S deeper, ↑/W forward */
   P.laneT+=(P.lane-P.laneT)*(1-Math.exp(-9*dt));
   const dz=zoneAtX(P.x);
-  $('td').classList.toggle('on',!!dz&&TOUCHY&&P.onGround&&P.lane<(dz?dz.maxLane:0));
-  $('tf').classList.toggle('on',TOUCHY&&P.lane>0);
+  $('tf').classList.toggle('on',!!dz&&TOUCHY&&P.onGround&&P.lane<(dz?dz.maxLane:0));
+  $('td').classList.toggle('on',TOUCHY&&P.lane>0);
   if(dz&&!seenDepthHint&&P.lane===0){
     seenDepthHint=true;
-    toast('a passage opens into the depth','↓/S steps deeper · ↑/W steps forward · Space always jumps');
+    toast('a passage opens into the depth','↑ steps deeper · ↓ steps back toward the light · Space jumps');
   }
+  /* Up = step away from camera, Down = step toward it.
+     Inside a depth-zone doorway the step enters the back rooms (old lane system);
+     everywhere else it shifts the shallow 3-lane strip on the main floor. */
+  const onFloorPiece=P.onGround&&P.groundRef&&P.groundRef.ground;
   if(lanePressed){
     lanePressed=false;
-    if(P.onGround&&P.deathT<=0&&dz&&P.lane<dz.maxLane&&groundUnder(BPL[P.lane+1],P.x,P.y)){
+    if(P.onGround&&P.deathT<=0&&dz&&P.zl===0&&P.lane<dz.maxLane&&groundUnder(BPL[P.lane+1],P.x,P.y)){
       P.lane++;sfx.jump();
       for(let i=0;i<6;i++)spawnSteam(P.x+(rnd()-.5)*20,P.y);
+    }else if(onFloorPiece&&P.deathT<=0&&P.lane===0&&P.zl>-1){
+      P.zl--;hiss(.14,.04,1600);
     }
   }
   if(fwdPressed){
@@ -1440,8 +1450,13 @@ function update(dt){
         P.lane--;sfx.jump();jumpPressed=false;P.buffer=0;
         for(let i=0;i<6;i++)spawnSteam(P.x+(rnd()-.5)*20,P.y);
       }else{sfx.wrong();toast('no footing ahead here','walk on — step forward where the floor is solid');}
+    }else if(onFloorPiece&&P.deathT<=0&&P.lane===0&&P.zl<1){
+      P.zl++;hiss(.14,.04,1200);
     }
   }
+  /* strip lane eases; airborne or on a hanging platform pulls you back to the walk line */
+  if(!onFloorPiece||P.lane>0)P.zl=0;
+  P.zlT+=(P.zl-P.zlT)*(1-Math.exp(-8*dt));
   /* lane-hunters stalk across the planes */
   for(const h of hunters){
     h.x+=h.spd*h.dir*dt;
@@ -1466,10 +1481,14 @@ function update(dt){
        Math.abs(P.x-h.x)<24&&P.y>GY-40&&P.deathT<=0)die();
   }
 
-  const ACC=2400,AIR=1500,FRI=2000,MAX=335;
+  const ACC=1350,AIR=1050,FRI=1050,MAX=300;
   let ax=0;
   if(keys.left)ax-=1;if(keys.right)ax+=1;
-  if(ax!==0){P.vx+=ax*(P.onGround?ACC:AIR)*dt;P.dir=ax>0?1:-1;}
+  if(ax!==0){
+    /* turning against momentum is heavier: weight, not snap */
+    const turn=(Math.sign(P.vx)&&Math.sign(ax)!==Math.sign(P.vx))?.65:1;
+    P.vx+=ax*(P.onGround?ACC:AIR)*turn*dt;P.dir=ax>0?1:-1;
+  }
   else if(P.onGround){const f=FRI*dt;
     if(Math.abs(P.vx)<=f)P.vx=0;else P.vx-=Math.sign(P.vx)*f;}
   P.vx=clamp(P.vx,-MAX,MAX);
@@ -1514,7 +1533,7 @@ function update(dt){
   if(P.nextBlink<=0){P.blink=.12;P.nextBlink=2+rnd()*3;}
   if(P.blink>0)P.blink-=dt;
   if(Math.abs(P.vx)>40&&P.onGround){
-    P.runPh+=dt*Math.abs(P.vx)*.055;
+    P.runPh+=dt*Math.abs(P.vx)*.048;
     if(rnd()<.08)spawnDust(P.x-P.dir*12,P.y,'rgba(150,140,120,.5)');
   }
   if(P.y>780)die();
@@ -1537,7 +1556,7 @@ function update(dt){
     bug.x+=bug.spd*bug.dir*dt;
     if(bug.x>bug.x2){bug.x=bug.x2;bug.dir=-1;}
     if(bug.x<bug.x1){bug.x=bug.x1;bug.dir=1;}
-    if(P.lane===0&&Math.abs(P.x-bug.x)<26&&P.y>bug.y-40&&P.deathT<=0)die();
+    if(P.lane===0&&Math.abs(P.zlT)<.4&&Math.abs(P.x-bug.x)<26&&P.y>bug.y-40&&P.deathT<=0)die();
   }
   // pushing on a closed shutter → point back to the shrine
   lessonGates.forEach((g,gi)=>{
@@ -1570,9 +1589,9 @@ function update(dt){
     chapterCard(LNAMES[lv][0],LNAMES[lv][1],2800);
     setTimeout(()=>{if(state==='play')letterbox(false);},3000);
   }
-  const tx=clamp(P.x-viewW*.42+P.vx*.16,0,LW-viewW);
+  const tx=clamp(P.x-viewW*.42+P.vx*.26,0,LW-viewW);
   const ty=clamp(P.y-322,-720,44); /* 44: feet at .77H with a floor apron below (ref median .76-.78H) */
-  const k=1-Math.exp(-7*dt);
+  const k=1-Math.exp(-4.2*dt);
   cam.x+=(tx-cam.x)*k;cam.y+=(ty-cam.y)*k;
   updateParticles(dt);
 }
@@ -1857,8 +1876,8 @@ function drawFgOcc(c,fx0){
   }
 }
 /* elliptical light pool on the floor plane (LN pool aspect ~3:1) */
-function floorPool(x,rx,rgb,a,fl){
-  ctx.save();ctx.translate(x,GY+6);ctx.scale(1,.26);
+function floorPool(x,rx,rgb,a,fl,dy){
+  ctx.save();ctx.translate(x,GY+6+(dy||0));ctx.scale(1,.26);
   const g=ctx.createRadialGradient(0,0,0,0,0,rx*fl);
   g.addColorStop(0,`rgba(${rgb},${a})`);g.addColorStop(1,`rgba(${rgb},0)`);
   ctx.fillStyle=g;ctx.fillRect(-rx*fl,-rx*fl,rx*fl*2,rx*fl*2);
@@ -2127,9 +2146,10 @@ function collectLights(){
   {
     /* headlamp thrown forward and down, not a symmetric aura */
     const k=laneK(P.laneT),hx2=cam.x+viewW/2,hy2=cam.y+330;
-    const lx=hx2+(P.x+P.dir*34-hx2)*k,ly=hy2+(P.y-10-hy2)*k;
+    const zo=P.zlT*20;
+    const lx=hx2+(P.x+P.dir*34-hx2)*k,ly=hy2+(P.y-10+zo-hy2)*k;
     L.push({x:lx,y:ly,r:185*k,c:'255,228,185',a:.9,flick:.06});
-    L.push({x:hx2+(P.x-hx2)*k,y:hy2+(P.y-24-hy2)*k,r:70*k,c:'255,228,185',a:.35,flick:0});
+    L.push({x:hx2+(P.x-hx2)*k,y:hy2+(P.y-24+zo-hy2)*k,r:70*k,c:'255,228,185',a:.35,flick:0});
   }
   // hunting eyes glow in the dark planes
   for(const h of hunters){
@@ -2800,7 +2820,11 @@ if(!plateOn){
   for(const bs of bossState)drawBoss(bs,m);
   /* player (front plane) */
   if(P.laneT<=.5){
-    ctx.save();laneTransform(laneK(P.laneT));drawCluu();ctx.restore();
+    ctx.save();laneTransform(laneK(P.laneT));
+    const zk2=1+P.zlT*.07;
+    ctx.translate(P.x,GY);ctx.scale(zk2,zk2);ctx.translate(-P.x,-GY);
+    ctx.translate(0,P.zlT*20);
+    drawCluu();ctx.restore();
   }
 
   /* particles */
@@ -2852,7 +2876,7 @@ if(!plateOn){
     floorPool(sf.x,sf.w*1.7,'172,208,198',.16,1);
   }
   /* the headlamp visibly lands in front of Cluu */
-  if(P.laneT<.5&&P.deathT<=0)floorPool(P.x+P.dir*26,64,'255,228,185',.1,1);
+  if(P.laneT<.5&&P.deathT<=0)floorPool(P.x+P.dir*26,64,'255,228,185',.1,1,P.zlT*20);
   for(const l of lights){
     const fl=1+(l.flick?Math.sin(T*11+l.x)*l.flick:0);
     const r=l.r*1.15*fl;
