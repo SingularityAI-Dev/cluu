@@ -460,7 +460,7 @@ function musicTick(){
 }
 /* ============================== sampled audio ============================== */
 const ABASE=PBASE.replace('plates/','audio/');
-const buf={steps:[],bhits:[],lhits:[],ahits:[],whits:[],riser:[],uiC:[],uiD:[],uiG:[],whoosh:[],cogN:[],jumpW:[],moth:[]};
+const buf={steps:[],bhits:[],lhits:[],ahits:[],whits:[],riser:[],uiC:[],uiD:[],uiG:[],whoosh:[],cogN:[],jumpW:[],moth:[],uiB:[]};
 let samplesLoaded=false;
 function loadSamples(){
   if(!AC||samplesLoaded)return;samplesLoaded=true;
@@ -479,6 +479,7 @@ function loadSamples(){
   for(let i=0;i<4;i++)load(ABASE+'cog_'+(i+1)+'.mp3',buf.cogN,i);
   for(let i=0;i<2;i++)load(ABASE+'jump_'+(i+1)+'.mp3',buf.jumpW,i);
   load(ABASE+'moth_1.mp3',buf.moth,0);
+  load(ABASE+'ui_beep.mp3',buf.uiB,0);
 }
 function playBuf(arr,vol,rate){
   if(!AC)return false;
@@ -496,8 +497,34 @@ let musA=musEls[0],musB=musEls[1],curTrack=-1,musVol=.55,duck=1;
 function playLevelMusic(li){
   if(li===curTrack)return;curTrack=li;
   const t=musA;musA=musB;musB=t;
-  musA.src=ABASE+'music_l'+([1,4,2,3,5][li])+'.mp3';
+  musA.src=li===-2?ABASE+'music_title.mp3':ABASE+'music_l'+([1,4,2,3,5][li])+'.mp3';
   musA.volume=0;musA.play().catch(()=>{});
+}
+/* title theme starts on the first gesture the browser will honor */
+function armTitleMusic(){
+  const fire=()=>{
+    if(state!=='title')return;
+    initAudio();
+    playLevelMusic(-2);
+    playBuf(buf.uiD,.25);
+  };
+  addEventListener('pointerdown',fire,{once:true});
+  addEventListener('keydown',fire,{once:true});
+}
+armTitleMusic();
+/* UI sfx: soft beep on hover, confirm on press, for every button in the game */
+{
+  let lastHover=0;
+  addEventListener('mouseover',e=>{
+    const b=e.target.closest&&e.target.closest('.btn,.opt');
+    if(!b||!AC)return;
+    const now=performance.now();
+    if(now-lastHover<90)return;lastHover=now;
+    playBuf(buf.uiB,.18,1.1);
+  });
+  addEventListener('pointerdown',e=>{
+    if(e.target.closest&&e.target.closest('.btn')&&AC)playBuf(buf.uiC,.3,1.15);
+  });
 }
 function updateMusic(dt){
   const target=musicOn?musVol*duck:0;
@@ -1851,8 +1878,13 @@ function bossDefeated(bs){
 /* ============================== flow ============================== */
 function startGame(){
   initAudio();
-  musEls.forEach(el=>{el.src=ABASE+'music_l1.mp3';el.muted=true;
-    el.play().then(()=>{el.pause();el.muted=false;}).catch(()=>{el.muted=false;});});
+  if(curTrack===-2){ /* title theme already running: prime only the idle element */
+    musB.src=ABASE+'music_l1.mp3';musB.muted=true;
+    musB.play().then(()=>{musB.pause();musB.muted=false;}).catch(()=>{musB.muted=false;});
+  }else{
+    musEls.forEach(el=>{el.src=ABASE+'music_l1.mp3';el.muted=true;
+      el.play().then(()=>{el.pause();el.muted=false;}).catch(()=>{el.muted=false;});});
+  }
   setTimeout(()=>playLevelMusic(0),80);
   $('title').classList.remove('show');
   $('hud').classList.add('show');
