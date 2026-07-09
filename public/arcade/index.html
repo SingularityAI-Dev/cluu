@@ -257,6 +257,10 @@ addEventListener('resize',resize); resize();
 const PBASE=/\/arcade\//.test(location.pathname)?'plates/':'arcade/plates/';
 const plateImgs=['wall_l1','wall_sluice','wall_l2b','wall_l3b','wall_l5'].map(n=>{const i=new Image();i.decoding='async';i.src=PBASE+n+'.webp';return i;});
 const crawlImg=new Image();crawlImg.decoding='async';crawlImg.src=PBASE+'wall_crawl.webp';
+/* painted boss sprites (chroma-keyed); vector bodies remain the fallback */
+const bossImgs=[1,2,3,4,5].map(n=>{const i=new Image();i.decoding='async';i.src=PBASE+'boss_'+n+'.webp';return i;});
+const BH=[330,340,360,320,300]; /* sprite heights in world px */
+const BEYE=[[[-.09,-.30],[.09,-.30]],[[-.07,-.36],[.07,-.36]],[[-.18,-.42]],[[0,-.12]],[[0,.18]]];
 const pitImg=new Image();pitImg.decoding='async';pitImg.src=PBASE+'wall_pit.webp';
 {
   const t=document.getElementById('title');
@@ -897,12 +901,71 @@ const BOSSES=[
           {t:'Never touch that file again as long as you live',hint:'Fear is the Bug’s favourite nest.'},
           {t:'Declare it a miracle and update your CV',hint:'Miracles regress. Understanding does not.'}]}]},
 ];
-const bossState=ARENA.map((a,i)=>({i,hp:3,php:3,phase:0,state:'wait',t:0,x:a.cx+180,dead:false,hitT:0,lungeT:0}));
+const bossState=ARENA.map((a,i)=>({i,hp:3,php:3,phase:0,state:'wait',t:0,x:a.cx+180,dead:false,hitT:0,lungeT:0,riseT:1,tiltT:0}));
 // state: wait | intro | duel | dying | dead
+/* ============================== boss drama layer ============================== */
+let slowmoT=0,beamT=0,beamX=0,beamY=0,bossFlicker=0;
+/* wounded machine-speak: one line per hp lost, third fires on the killing blow */
+const REACTS=[
+ ['“HNK— the words of waking. You KNOW them. My gears… misaligned…”',
+  '“My hinges— rust takes what doubt cannot. Speak on, little scrap.”',
+  '“The yards were cold… so long. Go. WAKE THEM—”'],
+ ['“SSHH— my drawers— you have UNFILED me—”',
+  '“Card by card you take me apart. Noted. Cross-referenced. …Feared.”',
+  '“Re-shelve me under… beaten. Quietly, keeper. Quietly—”'],
+ ['“Off by a hair. MY hair. Recalculating—”',
+  '“Your angles hold. Mine… splinter. Draw on.”',
+  '“Measured once. Cut… clean. Adequate—”'],
+ ['“HSSS— a checkpoint I cannot roll back—”',
+  '“My boiler weeps steam. Every change you keep is a nail in me.”',
+  '“Final commit message: the lamp… stays lit—”'],
+ ['“ERROR: keeper not afraid. Retrying— RETRYING—”',
+  '“You READ me. No one reads me. Trace… shortening—”',
+  '“Test… passing. I was only ever… a bug—”']];
+/* typewriter for the duel sheet's boss line (#dsay) */
+const sayTyper={el:null,full:'',i:0,acc:0};
+function typeSay(txt){
+  if(!sayTyper.el)sayTyper.el=document.getElementById('dsay');
+  sayTyper.full=txt||'';sayTyper.i=0;sayTyper.acc=0;
+  if(sayTyper.el)sayTyper.el.textContent='';
+}
+function tickSay(dt){
+  const st2=sayTyper;
+  if(!st2.el||st2.i>=st2.full.length)return;
+  if(state!=='duel'){st2.i=st2.full.length;st2.el.textContent=st2.full;return;}
+  st2.acc+=dt;
+  while(st2.acc>=.028&&st2.i<st2.full.length){
+    st2.acc-=.028;st2.i++;
+    if(st2.i%4===0)tone(700+((st2.i*53)%180),.03,'square',.016);
+  }
+  st2.el.textContent=st2.full.slice(0,st2.i);
+}
+(function(){const el=document.getElementById('dsay');
+  if(el)el.addEventListener('pointerdown',()=>{sayTyper.i=sayTyper.full.length;el.textContent=sayTyper.full;});})();
+/* generic damage overlay: glowing furnace seams + guttering face, drawn in boss-local space
+   (survives a future painted-sprite boss: it composites over whatever body was drawn) */
+const CRACKS=[[-8,-64,-34,-30,-22,6,-46,34],[12,-70,30,-38,18,-6,44,22],[-52,-10,-24,14,-40,52],[40,-56,58,-20,50,18]];
+function drawBossDamage(bs){
+  if(bs.state!=='duel'&&bs.state!=='dying')return;
+  if(bs.hp>=3)return;
+  const glow=.35+.25*Math.sin(T*7+bs.i*2)+(bs.hitT>0?.3:0);
+  const n=bs.hp<=1?CRACKS.length:2;
+  ctx.strokeStyle=`rgba(255,150,90,${clamp(glow*(bs.hp<=1?1:.6),0,.9)})`;
+  ctx.lineWidth=2;ctx.lineCap='round';
+  ctx.beginPath();
+  for(let c2=0;c2<n;c2++){const K=CRACKS[c2];ctx.moveTo(K[0],K[1]);
+    for(let p3=2;p3<K.length;p3+=2)ctx.lineTo(K[p3],K[p3+1]);}
+  ctx.stroke();ctx.lineCap='butt';
+  /* power gutters across the face: one-beat eye dimming */
+  if(!REDUCED&&Math.sin(T*11+bs.i*3)>.55){
+    ctx.fillStyle='rgba(5,8,10,.35)';ctx.fillRect(-115,-150,230,112);
+  }
+}
 
 /* ============================== player & globals ============================== */
 const P={x:120,y:GY,vx:0,vy:0,dir:1,onGround:false,groundRef:null,lane:0,laneT:0,zl:0,zlT:0,
-  coyote:0,buffer:0,sx:1,sy:1,sVel:0,blink:0,nextBlink:2.5,runPh:0,deathT:0};
+  coyote:0,buffer:0,sx:1,sy:1,sVel:0,blink:0,nextBlink:2.5,runPh:0,deathT:0,
+  skidT:0,staggerT:0,fallY0:0,idleT:0,glanceT:0,glanceDir:1,nextGlance:5,helmLag:0,airPose:0};
 let seenDepthHint=false;
 function zoneAtX(x){return depthZones.find(z=>x>=z.x1&&x<=z.x2)||null;}
 function groundUnder(list,x,y){
@@ -1407,7 +1470,9 @@ function startBossIntro(bs){
   canvas.classList.add('tilt');
   playBuf(buf.bhits,.9);duck=.22;
   keys.left=keys.right=keys.jump=false;
-  bs.state='intro';bs.t=0;
+  bs.state='intro';bs.t=0;bs.riseT=0;
+  if(!REDUCED)shakeT=.45;
+  for(let i2=0;i2<16;i2++)spawnDust(bs.x+(rnd()-.5)*220,GY-4,'rgba(140,125,95,.65)');
   letterbox(true);sfx.reveal();
   const B=BOSSES[bs.i];
   setTimeout(()=>chapterCard(B.name,B.title,2600),700);
@@ -1417,7 +1482,7 @@ function startDuel(bs){
   bs.state='duel';state='duel';
   const B=BOSSES[bs.i];
   $('dname').innerHTML=B.name+'<small>'+B.title+'</small>';
-  $('dsay').textContent=B.say;
+  typeSay(B.say);
   pips($('bpips'),bs.hp,'b',3);
   pips($('ppips'),bs.php,'p',3);
   duelEl.classList.add('on');
@@ -1442,6 +1507,9 @@ function duelAnswer(bs,o,b){
     b.classList.add('right');
     duelOpts.forEach(({b:x})=>x.disabled=true);
     bs.hp--;bs.hitT=.6;bs.phase++;
+    beamT=.3;beamX=P.x;beamY=P.y-30;
+    typeSay(REACTS[bs.i][Math.min(2,2-bs.hp)]);
+    if(bs.hp<=0&&!REDUCED)slowmoT=.6;
     flashT=REDUCED?0:.55;shakeT=REDUCED?0:.4;
     sfx.strike();setTimeout(()=>sfx.bossHit(),120);
     playBuf(buf.ahits,.9);
@@ -1451,7 +1519,7 @@ function duelAnswer(bs,o,b){
     else setTimeout(()=>duelQuestion(bs),1100);
   }else{
     b.classList.add('wrong');b.disabled=true;
-    bs.php--;bs.lungeT=.7;hurtT=REDUCED?.2:.8;shakeT=REDUCED?0:.55;
+    bs.php--;bs.lungeT=.7;if(!REDUCED)bossFlicker=.17;hurtT=REDUCED?.2:.8;shakeT=REDUCED?0:.55;
     sfx.hurt();sfx.wrong();
     playBuf(buf.whits,.75);
     pips($('ppips'),bs.php,'p',3);
@@ -1533,6 +1601,8 @@ function update(dt){
   if(flashT>0)flashT-=dt;
   if(hurtT>0)hurtT-=dt;
   if(shakeT>0)shakeT-=dt;
+  if(beamT>0)beamT-=dt;
+  if(bossFlicker>0)bossFlicker-=dt;
   for(const g of allGates){if(g.opening&&g.openT<1){g.openT=Math.min(1,g.openT+dt/1.2);
     if(rnd()<.4)spawnDust(g.x+g.w/2+(rnd()-.5)*40,GY-4,'#a08a5a');}}
   const moved=new Map();
@@ -1542,7 +1612,16 @@ function update(dt){
   for(const bs of bossState){
     if(bs.hitT>0)bs.hitT-=dt;
     if(bs.lungeT>0)bs.lungeT-=dt;
-    if(bs.state==='intro')bs.t+=dt;
+    if(bs.state==='intro'){
+      const rp=bs.riseT;bs.t+=dt;bs.riseT=Math.min(1,bs.t/2.1);
+      if(bs.riseT<1&&rnd()<.5)spawnDust(bs.x+(rnd()-.5)*200,GY-4,'rgba(120,110,90,.6)');
+      if(rp<1&&bs.riseT>=1){shakeT=REDUCED?0:.3;sfx.land();
+        for(let d2=0;d2<10;d2++)spawnSteam(bs.x+(rnd()-.5)*160,GY-30);}
+    }
+    if(bs.state==='duel'||bs.state==='dying'){
+      bs.tiltT+=((bs.hp<=1?1:0)-bs.tiltT)*(1-Math.exp(-3*dt));
+      if(bs.hp<=1&&bs.state==='duel'&&rnd()<.25)spawnSteam(bs.x+(rnd()-.5)*120,240+rnd()*80);
+    }else bs.tiltT+=(0-bs.tiltT)*(1-Math.exp(-3*dt));
     if(bs.state==='dying'){bs.t+=dt;
       if(rnd()<.8)spawnMoth(bs.x+(rnd()-.5)*160,280+(rnd()-.5)*120);}
   }
@@ -1640,17 +1719,28 @@ function update(dt){
        Math.abs(P.x-h.x)<24&&P.y>GY-40&&P.deathT<=0)die();
   }
 
-  const ACC=1350,AIR=1050,FRI=1050,MAX=300;
+  const ACC=950,AIR=780,FRI=900,MAX=252;
   let ax=0;
   if(keys.left)ax-=1;if(keys.right)ax+=1;
   if(ax!==0){
     /* turning against momentum is heavier: weight, not snap */
-    const turn=(Math.sign(P.vx)&&Math.sign(ax)!==Math.sign(P.vx))?.65:1;
-    P.vx+=ax*(P.onGround?ACC:AIR)*turn*dt;P.dir=ax>0?1:-1;
+    const opp=Math.sign(P.vx)&&Math.sign(ax)!==Math.sign(P.vx);
+    /* skid turn: reversing at speed ploughs the feet for a beat */
+    if(opp&&P.onGround&&Math.abs(P.vx)>180&&Math.sign(ax)!==P.dir){
+      P.skidT=.14;playBuf(buf.steps,.3,.55);
+      if(!REDUCED)for(let i=0;i<5;i++)spawnDust(P.x+Math.sign(P.vx)*10+(rnd()-.5)*8,P.y,'rgba(150,140,120,.55)');
+    }
+    const turn=opp?(P.skidT>0?.55:.6):1;
+    /* asymptotic ramp: strong first push, long tail toward top speed */
+    const ramp=1-.55*Math.min(1,Math.abs(P.vx)/MAX);
+    P.vx+=ax*(P.onGround?ACC:AIR)*turn*ramp*(P.staggerT>0?.5:1)*dt;P.dir=ax>0?1:-1;
   }
   else if(P.onGround){const f=FRI*dt;
     if(Math.abs(P.vx)<=f)P.vx=0;else P.vx-=Math.sign(P.vx)*f;}
   P.vx=clamp(P.vx,-MAX,MAX);
+  if(P.skidT>0)P.skidT-=dt;
+  if(P.staggerT>0)P.staggerT-=dt;
+  if(P.onGround)P.fallY0=P.y;else P.fallY0=Math.min(P.fallY0,P.y); /* apex of current fall */
   P.coyote=P.onGround?.1:Math.max(0,P.coyote-dt);
   if(jumpPressed){P.buffer=.13;jumpPressed=false;}
   else P.buffer=Math.max(0,P.buffer-dt);
@@ -1683,14 +1773,30 @@ function update(dt){
       b=pbox();}}
   if(P.onGround&&wasAir){
     P.sVel=5;sfx.land();
+    if(P.y-P.fallY0>220){ /* heavy landing: settle before you can sprint again */
+      P.sy=.78;P.sx=2-P.sy;P.staggerT=.12;
+      playBuf(buf.steps,.85,.6);
+      if(!REDUCED)for(let i=0;i<10;i++)spawnDust(P.x+(rnd()-.5)*40,P.y,'rgba(150,140,120,.55)');
+    }
     for(let i=0;i<6;i++)spawnSteam(P.x+(rnd()-.5)*24,P.y);
   }
   P.sVel+=(1-P.sy)*130*dt-P.sVel*10*dt;
   P.sy+=P.sVel*dt;P.sx=2-P.sy;
   if(!P.onGround){P.sy=lerp(P.sy,P.vy<0?1.12:1.05,.12);P.sx=2-P.sy;}
+  P.airPose+=((P.onGround?0:(P.vy<0?-1:1))-P.airPose)*Math.min(1,14*dt);
+  P.helmLag+=((P.onGround&&Math.abs(P.vx)>40?Math.abs(Math.sin(P.runPh))*3:0)-P.helmLag)*Math.min(1,18*dt);
   P.nextBlink-=dt;
   if(P.nextBlink<=0){P.blink=.12;P.nextBlink=2+rnd()*3;}
   if(P.blink>0)P.blink-=dt;
+  /* idle life: settle into breathing, occasionally glance around */
+  if(P.onGround&&Math.abs(P.vx)<10){
+    P.idleT+=dt;
+    if(P.idleT>1.2){
+      P.nextGlance-=dt;
+      if(P.nextGlance<=0){P.glanceT=.8;P.glanceDir=rnd()<.5?-1:1;P.nextGlance=4+rnd()*3;}
+    }
+  }else if(P.idleT>0){P.idleT=0;P.glanceT=0;P.nextGlance=4+rnd()*3;}
+  if(P.glanceT>0)P.glanceT-=dt;
   if(Math.abs(P.vx)>40&&P.onGround){
     P.runPh+=dt*Math.abs(P.vx)*.048;
     const sg=Math.sin(P.runPh)>=0;
@@ -3082,6 +3188,18 @@ if(!plateOn){
   const lights=collectLights();
   // warm glow (additive)
   ctx.globalCompositeOperation='lighter';
+  /* light-lash: Cluu's answer strikes the warden as a tapered cream beam */
+  if(beamT>0&&activeBoss){
+    const la=beamT/.3,tx2=activeBoss.x,ty2=290,dx2=tx2-beamX,dy2=ty2-beamY;
+    const dl=Math.hypot(dx2,dy2)||1,nx2=-dy2/dl,ny2=dx2/dl,wq=16*la;
+    ctx.fillStyle=`rgba(253,246,216,${.28*la})`;
+    ctx.beginPath();
+    ctx.moveTo(beamX+nx2*2,beamY+ny2*2);ctx.lineTo(tx2+nx2*wq,ty2+ny2*wq);
+    ctx.lineTo(tx2-nx2*wq,ty2-ny2*wq);ctx.lineTo(beamX-nx2*2,beamY-ny2*2);
+    ctx.closePath();ctx.fill();
+    ctx.strokeStyle=`rgba(253,246,216,${.85*la})`;ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.moveTo(beamX,beamY);ctx.lineTo(tx2,ty2);ctx.stroke();
+  }
   /* volumetric cones under the hanging lamps */
   for(const lp of lamps){
     if(lp.x<cam.x-160||lp.x>cam.x+viewW+160)continue;
@@ -3146,7 +3264,8 @@ if(!plateOn){
   dctx.setTransform(1,0,0,1,0,0);
   dctx.globalCompositeOperation='source-over';
   dctx.clearRect(0,0,dark.width,dark.height);
-  dctx.fillStyle=`rgba(3,16,18,${m.darkA})`; /* chromatic teal darkness, never neutral crush */
+  const dA2=(bossFlicker>0&&(((bossFlicker*24)|0)%2))?Math.min(.92,m.darkA+.16):m.darkA;
+  dctx.fillStyle=`rgba(3,16,18,${dA2})`; /* chromatic teal darkness, never neutral crush */
   dctx.fillRect(0,0,dark.width,dark.height);
   dctx.globalCompositeOperation='destination-out';
   for(const l of lights){
@@ -3245,12 +3364,15 @@ function drawBoss(bs,m){
   if(bs.state==='dying'){eyeA=clamp(1-bs.t/1.2,0,1);alpha=clamp(1-Math.max(0,bs.t-1.8)/.8,0,1);}
   if(bs.state==='dead'){alpha=.5;scaleY=.4;eyeA=0;}
   const bob=bs.state==='dead'?0:Math.sin(T*1.1+bs.i)*8;
-  const jit=(bs.state==='dying'&&!REDUCED)?3:(bs.hitT>0?4:0);
+  const jit=(bs.state==='dying'&&!REDUCED)?3:(bs.hitT>0?4:((bs.state==='duel'&&bs.hp<=1&&!REDUCED)?2.2:0));
   const jx=jit?(rnd()-.5)*jit:0,jy=jit?(rnd()-.5)*jit:0;
   const lunge=bs.lungeT>0?Math.sin(bs.lungeT*9)*26*bs.lungeT:0;
   const recoil=bs.hitT>0?bs.hitT*30:0;
   const bx=bs.x+jx-lunge+recoil;
   let byBase=bs.state==='dead'?GY-60:290+bob+jy,rot2=0;
+  if(bs.state==='intro'){const rr=1-Math.pow(1-clamp(bs.riseT||0,0,1),3);
+    byBase+=(1-rr)*260;alpha*=clamp(.25+(bs.riseT||0)*1.5,0,1);}
+  rot2+=(bs.tiltT||0)*.07*(bs.i%2?1:-1);
   if(bs.state==='dying'){ /* the warden falls, hits the boards, dust */
     const ft=clamp(bs.t/1.6,0,1),fe=ft*ft;
     byBase+=fe*(GY-70-290);
@@ -3286,7 +3408,8 @@ function drawBoss(bs,m){
   ctx.globalAlpha=alpha;
   ctx.translate(bx,byBase);
   ctx.rotate(rot2);
-  ctx.scale(1,scaleY);
+  const menace=(bs.lungeT>0&&!REDUCED)?1+.18*Math.sin(clamp((.7-bs.lungeT)/.7,0,1)*Math.PI):1;
+  ctx.scale(menace,scaleY*menace);
   const dark2='#0b0e12', mid='#151a20', edge=mixRGB(m.edge,'rgb(0,0,0)',.35);
   const eye=(ex,ey,r)=>{
     if(eyeA<=0)return;
@@ -3298,7 +3421,23 @@ function drawBoss(bs,m){
     ctx.beginPath();ctx.arc(ex,ey,r+2.5,0,7);ctx.stroke();
   };
   const i=bs.i;
-  if(i===0){ /* Gatekeeper: broad riveted head-torso, edges melt into the dark */
+  const bimg=bossImgs[i],bOK=bimg&&bimg.complete&&bimg.naturalWidth>0;
+  if(bOK){ /* painted puppet boss */
+    const bh=BH[i],bw=bh*bimg.naturalWidth/bimg.naturalHeight;
+    ctx.drawImage(bimg,-bw/2,-bh*.56,bw,bh);
+    if(bs.hitT>0){ /* strike flash on the body */
+      ctx.globalCompositeOperation='lighter';
+      ctx.globalAlpha=alpha*bs.hitT*.5;
+      ctx.drawImage(bimg,-bw/2,-bh*.56,bw,bh);
+      ctx.globalAlpha=alpha;ctx.globalCompositeOperation='source-over';
+    }
+    if(eyeA>0)for(const e of BEYE[i]){
+      const ex=e[0]*bh,ey=e[1]*bh;
+      const g=ctx.createRadialGradient(ex,ey,0,ex,ey,26);
+      g.addColorStop(0,`rgba(255,80,60,${.5*eyeA})`);g.addColorStop(1,'rgba(255,80,60,0)');
+      ctx.fillStyle=g;ctx.fillRect(ex-26,ey-26,52,52);
+    }
+  }else if(i===0){ /* Gatekeeper: broad riveted head-torso, edges melt into the dark */
     ctx.fillStyle=dark2;roundRect(-95,-85,190,190,18);ctx.fill();
     ctx.fillStyle=mid;roundRect(-78,-68,156,90,12);ctx.fill();
     ctx.fillStyle=dark2;
@@ -3382,6 +3521,7 @@ function drawBoss(bs,m){
     ctx.beginPath();ctx.moveTo(118,30);ctx.quadraticCurveTo(170,44,166,76);ctx.quadraticCurveTo(140,58,112,52);ctx.closePath();ctx.fill();
     eye(78,-30,15);eye(108,-6,11);eye(52,-52,9);
   }
+  drawBossDamage(bs);
   ctx.restore();
 }
 
@@ -3520,21 +3660,27 @@ function drawCluu(){
   ctx.beginPath();ctx.ellipse(x,floorBelow(x,y),24*P.sx,6,0,0,7);ctx.fill();
   ctx.save();
   ctx.translate(x,y);
-  ctx.rotate(clamp(P.vx*.00035,-.09,.09));
+  const skidL=P.skidT>0?(Math.sign(P.vx)||-P.dir)*.12*(P.skidT/.14):0;
+  ctx.rotate(clamp(P.vx*.0004,-.12,.12)+skidL);
   ctx.scale(P.dir*P.sx,P.sy);
+  const idleF=P.idleT>1.2?Math.min(1,(P.idleT-1.2)*1.5):0;
+  const brth=idleF>0?Math.sin(T*3.77)*idleF:0;
+  if(brth)ctx.scale(1,1+brth*.01);
   const runb=P.onGround&&Math.abs(P.vx)>40?Math.abs(Math.sin(P.runPh))*3:0;
   ctx.translate(0,-runb);
   const step=P.onGround&&Math.abs(P.vx)>40?Math.sin(P.runPh)*5:0;
   ctx.lineCap='round';
   /* spindly stick legs + tiny foot nubs */
+  const ap=P.airPose; /* -1 rising (tuck) .. +1 falling (reach) */
+  const ly=-.5+(ap<0?ap*4:ap*1.7), lxs=ap<0?ap:ap*2;
   ctx.strokeStyle='#2e1812';ctx.lineWidth=2.6;
-  ctx.beginPath();ctx.moveTo(-5,-9);ctx.lineTo(-6-step,-.5);ctx.moveTo(5,-9);ctx.lineTo(6+step,-.5);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(-5,-9);ctx.lineTo(-6-step-lxs,ly);ctx.moveTo(5,-9);ctx.lineTo(6+step+lxs,ly);ctx.stroke();
   ctx.fillStyle='#2e1812';
-  roundRect(-8.5-step,-2.2,5,2.4,1.2);ctx.fill();roundRect(3.5+step,-2.2,5,2.4,1.2);ctx.fill();
+  roundRect(-8.5-step-lxs,ly-1.7,5,2.4,1.2);ctx.fill();roundRect(3.5+step+lxs,ly-1.7,5,2.4,1.2);ctx.fill();
   /* rear stick arm */
   ctx.strokeStyle='#4a2418';ctx.lineWidth=2.3;
-  ctx.beginPath();ctx.moveTo(-12,-24);ctx.lineTo(-15+step*.5,-13);ctx.stroke();
-  ctx.fillStyle='#4a2418';ctx.beginPath();ctx.arc(-15+step*.5,-12.4,1.7,0,7);ctx.fill();
+  ctx.beginPath();ctx.moveTo(-12,-24);ctx.lineTo(-15+step*.8,-13);ctx.stroke();
+  ctx.fillStyle='#4a2418';ctx.beginPath();ctx.arc(-15+step*.8,-12.4,1.7,0,7);ctx.fill();
   /* tiny body: terracotta only where top-light hits, base sunk to #6b3a2c */
   const bg=ctx.createLinearGradient(0,-32,0,-8);
   bg.addColorStop(0,'#d97757');bg.addColorStop(.38,'#a35540');bg.addColorStop(1,'#6b3a2c');
@@ -3558,10 +3704,11 @@ function drawCluu(){
   ctx.strokeStyle='rgba(255,240,214,.12)';ctx.stroke();
   /* front stick arm */
   ctx.strokeStyle='#7a4230';ctx.lineWidth=2.3;
-  ctx.beginPath();ctx.moveTo(12,-24);ctx.lineTo(15-step*.5,-13);ctx.stroke();
-  ctx.fillStyle='#7a4230';ctx.beginPath();ctx.arc(15-step*.5,-12.4,1.7,0,7);ctx.fill();
+  ctx.beginPath();ctx.moveTo(12,-24);ctx.lineTo(15-step*.8,-13);ctx.stroke();
+  ctx.fillStyle='#7a4230';ctx.beginPath();ctx.arc(15-step*.8,-12.4,1.7,0,7);ctx.fill();
   /* square camera eyes (identity), low under the brim */
-  const lean=P.onGround?clamp(Math.abs(P.vx)*.008,0,2.2):1;
+  let lean=P.onGround?clamp(Math.abs(P.vx)*.008,0,2.2):1;
+  if(P.glanceT>0)lean+=P.glanceDir*2.2*Math.sin((P.glanceT/.8)*Math.PI);
   const eh=P.blink>0?2:9;
   const eyeSq=(ex)=>{
     ctx.fillStyle='#140d14';roundRect(ex-4.5+lean,-20-eh/2,9,eh,2.5);ctx.fill();
@@ -3575,6 +3722,8 @@ function drawCluu(){
   ctx.fillStyle='#57281a';roundRect(2.5+lean,-13.5,6,2,1);ctx.fill();
   /* brim shadow across the upper face */
   ctx.fillStyle='rgba(5,13,15,.45)';ctx.fillRect(-14,-32,28,9);
+  /* helmet lag bob: helmet trails the run bounce by a beat, breathes at idle */
+  ctx.translate(0,-P.helmLag*.5+brth);
   /* HUGE upturned-jug helmet: funnel body, teal-black metal */
   const hg=ctx.createLinearGradient(0,-47,0,-25);
   hg.addColorStop(0,'#355154');hg.addColorStop(.45,'#16383b');hg.addColorStop(1,'#0a1f22');
@@ -3615,6 +3764,8 @@ let last=performance.now();
 function frame(now){
   let dt=(now-last)/1000;last=now;
   dt=Math.min(dt,.033);
+  tickSay(dt); /* typewriter runs on real time, immune to slow-mo */
+  if(slowmoT>0){slowmoT-=dt;if(!REDUCED&&(state==='duel'||state==='cine'))dt*=.15;}
   update(dt);
   /* ambient steam + foundry embers */
   if(state!=='title'){
