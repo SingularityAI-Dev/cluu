@@ -744,6 +744,252 @@ bcog(14850,408,2);bcog(15020,408,2);
 /* pit treasure (lane -1) */
 [[1850,1990,2130,2270],[10400,10540,10680,10820],[13760,13930,14100,14270]].flat()
  .forEach(x=>cogs.push({x,y:GY-46,got:false,ph:rnd()*6.28,lane:-1}));
+/* ============================== biomes & weather ============================== */
+/* per-level identity: 0 boiler-yards (interior), 1 undersluice (interior, dripping),
+   2 night fair (OUTSIDE, rain + string lights), 3 blueprint woods (OUTSIDE, paper
+   lanterns under a canopy), 4 summit boiler (interior, embers) */
+const BIOME=[
+ {outdoor:false,lampStyle:'caged', weather:'none',  canopy:false},
+ {outdoor:false,lampStyle:'caged', weather:'drip',  canopy:false},
+ {outdoor:true, lampStyle:'string',weather:'rain',  canopy:false},
+ {outdoor:true, lampStyle:'paper', weather:'leaves',canopy:true},
+ {outdoor:false,lampStyle:'caged', weather:'embers',canopy:false},
+];
+/* blended biome weight at the camera centre (same 460px fade the palette uses) */
+let bwI=0,bwJ=0,bwT=0;
+function biomeBlend(){
+  const cx=cam.x+viewW/2;bwI=levelOf(cx);bwJ=bwI;bwT=0;
+  if(bwI<BIOME.length-1&&cx>LB[bwI+1]-460){
+    bwJ=bwI+1;bwT=(cx-(LB[bwI+1]-460))/460;bwT=bwT*bwT*(3-2*bwT);
+  }
+}
+function bWeight(key,val){
+  return (BIOME[bwI][key]===val?1-bwT:0)+(BIOME[bwJ][key]===val?bwT:0);
+}
+/* preallocated weather pools — seeded init, seed restored so world-gen is untouched */
+const RAIN_N=REDUCED?45:90, rainA=new Float32Array(RAIN_N*3);   // sx, sp, ln
+const LEAF_N=REDUCED?13:26, leafA=new Float32Array(LEAF_N*4);   // sx, sp, ph, sz
+const dripSrcs=[], canopyLimbs=[];
+{
+  const s0=seed;seed=660091;
+  for(let i=0;i<RAIN_N;i++){rainA[i*3]=rnd();rainA[i*3+1]=.55+rnd()*.5;rainA[i*3+2]=14+rnd()*16;}
+  for(let i=0;i<LEAF_N;i++){leafA[i*4]=rnd();leafA[i*4+1]=.5+rnd()*.7;leafA[i*4+2]=rnd()*6.28;leafA[i*4+3]=3+rnd()*2.6;}
+  for(let i=0;i<BIOME.length;i++){
+    if(BIOME[i].weather==='drip')
+      for(let x=LB[i]+90;x<LB[i+1]-40;x+=150+rnd()*220)
+        dripSrcs.push({x,per:(REDUCED?2.4:1.2)+rnd()*1.2,off:rnd()*9,k:-1});
+    if(BIOME[i].canopy){
+      const a=LB[i]*.7-260,b=LB[i+1]*.7+260;
+      for(let x=a;x<b;x+=300+rnd()*220)
+        canopyLimbs.push({lx:x,len:200+rnd()*160,dir:rnd()<.5?-1:1,ph:rnd()*6.28,th:18+rnd()*12,drop:rnd()*36});
+    }
+  }
+  seed=s0;
+}
+/* drip scheduler: T-derived ticks, no runtime rnd — pause-friendly by construction */
+function updateWeather(dt){
+  for(const d of dripSrcs){
+    if(d.x<cam.x-40||d.x>cam.x+viewW+40)continue;
+    const k=Math.floor((T+d.off)/d.per);
+    if(k!==d.k){
+      d.k=k;
+      particles.push({x:d.x,y:cam.y+14,vx:0,vy:60,life:1.15,max:1.15,
+        c:'rgba(165,200,215,.6)',r:1.8,g:620,drop:true});
+    }
+  }
+}
+/* screen-space rain streaks + drifting leaf flecks (drawn after the dark pass) */
+function drawWeather(m){
+  biomeBlend();
+  const W=innerWidth,H=innerHeight;
+  const wR=bWeight('weather','rain');
+  if(wR>0){
+    const slant=.21,span=W+200,camo=cam.x*s*.3;
+    ctx.strokeStyle='rgb(175,205,220)';ctx.lineWidth=1;
+    for(let band=0;band<2;band++){
+      ctx.globalAlpha=(band?.17:.11)*wR;
+      ctx.beginPath();
+      for(let i=band;i<RAIN_N;i+=2){
+        const sx=rainA[i*3],sp=rainA[i*3+1],ln=rainA[i*3+2]*(band?1.35:1)*s;
+        const yy=(((sx*7+T*sp)%1)+1)%1*(H+120)-60;
+        const xx=(((sx*span-camo-yy*slant)%span)+span)%span-100;
+        ctx.moveTo(xx,yy);ctx.lineTo(xx+ln*slant,yy+ln);
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+  }
+  const wL=bWeight('weather','leaves');
+  if(wL>0){
+    ctx.fillStyle='rgb(9,19,13)';
+    ctx.globalAlpha=.75*wL;
+    const span=W+240,camo=cam.x*s*.25;
+    for(let i=0;i<LEAF_N;i++){
+      const sx=leafA[i*4],sp=leafA[i*4+1],ph=leafA[i*4+2],sz=leafA[i*4+3];
+      const yy=(((sx*3.7+T*sp*.045)%1)+1)%1*(H+140)-70;
+      const xx=(((sx*span-camo)%span)+span)%span-120+Math.sin(T*(.7+sp)+ph)*46*s;
+      ctx.save();ctx.translate(xx,yy);ctx.rotate(ph+Math.sin(T*1.3+ph)*1.2);
+      ctx.beginPath();ctx.ellipse(0,0,sz*s,sz*.45*s,0,0,7);ctx.fill();
+      ctx.restore();
+    }
+    ctx.globalAlpha=1;
+  }
+}
+/* world-space wet-floor sheen + splash ticks (rain biome only) */
+function drawWetFloor(m){
+  biomeBlend();
+  const w=bWeight('weather','rain');
+  if(w<=0)return;
+  const g=ctx.createLinearGradient(0,GY-6,0,GY+120);
+  g.addColorStop(0,`rgba(150,195,215,${.1*w})`);
+  g.addColorStop(.4,`rgba(120,165,190,${.05*w})`);
+  g.addColorStop(1,'rgba(120,165,190,0)');
+  ctx.fillStyle=g;ctx.fillRect(cam.x-10,GY-6,viewW+20,126);
+  ctx.strokeStyle='rgb(190,220,235)';ctx.lineWidth=1.2;
+  const n=REDUCED?4:8;
+  for(let k=0;k<n;k++){
+    const ph=T*2.2+k*.37,cyc=Math.floor(ph),f=ph-cyc;
+    const hsh=Math.sin(cyc*127.1+k*311.7)*43758.5453;
+    const fx=cam.x+(hsh-Math.floor(hsh))*viewW;
+    let on=false;
+    for(const p of plats)if(p.ground&&fx>=p.x&&fx<=p.x+p.w){on=true;break;}
+    if(!on)continue;
+    ctx.globalAlpha=(1-f)*.5*w;
+    ctx.beginPath();ctx.ellipse(fx,GY+2,3+f*9,1+f*2.6,0,0,7);ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+}
+/* outdoor sky: high cool moon glow at deep parallax (.3), one per outdoor level */
+function drawOutdoorSky(m,sw){
+  biomeBlend();
+  const w=bWeight('outdoor',true);
+  if(w<=0)return;
+  sw(.3,.4);
+  ctx.globalCompositeOperation='lighter';
+  const v0=cam.x*.3;
+  for(let i=0;i<BIOME.length;i++){
+    if(!BIOME[i].outdoor)continue;
+    const mx=(LB[i]+LB[i+1])/2*.3,my=cam.y*.4+64;
+    if(mx<v0-220||mx>v0+viewW+220)continue;
+    const g=ctx.createRadialGradient(mx,my,0,mx,my,170);
+    g.addColorStop(0,`rgba(205,228,236,${.26*w})`);
+    g.addColorStop(.3,`rgba(178,210,224,${.11*w})`);
+    g.addColorStop(1,'rgba(178,210,224,0)');
+    ctx.fillStyle=g;ctx.fillRect(mx-170,my-170,340,340);
+    ctx.fillStyle=`rgba(226,240,244,${.55*w})`;
+    ctx.beginPath();ctx.arc(mx,my,24,0,7);ctx.fill();
+    ctx.fillStyle=`rgba(140,170,180,${.18*w})`;
+    ctx.beginPath();ctx.arc(mx-7,my+5,6,0,7);ctx.arc(mx+8,my-6,4,0,7);ctx.fill();
+  }
+  ctx.globalCompositeOperation='source-over';
+  sw(1);
+}
+/* canopy: huge dark branch silhouettes hanging into frame (pf .7, gentle sway) */
+function drawCanopy(m,sw){
+  biomeBlend();
+  const w=bWeight('canopy',true);
+  if(w<=0)return;
+  sw(.7,.85);
+  const c0=cam.x*.7,yT=cam.y*.85-14;
+  ctx.fillStyle=`rgba(5,11,8,${.88*w})`;
+  for(const br of canopyLimbs){
+    if(br.lx<c0-br.len-100||br.lx>c0+viewW+br.len+100)continue;
+    const sway=Math.sin(T*.35+br.ph)*.022;
+    ctx.save();ctx.translate(br.lx,yT+br.drop);ctx.scale(br.dir,1);ctx.rotate(sway);
+    ctx.beginPath();
+    ctx.moveTo(-br.th*.6,-40);
+    ctx.quadraticCurveTo(br.len*.35,br.len*.2,br.len,br.len*.34);
+    ctx.quadraticCurveTo(br.len*.42,br.len*.32,br.th*.6,br.th-40);
+    ctx.closePath();ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(br.len*.55,br.len*.28,br.len*.36,br.len*.15,.3,0,7);
+    ctx.ellipse(br.len*.88,br.len*.36,br.len*.24,br.len*.12,.2,0,7);
+    ctx.ellipse(br.len*.3,br.len*.1,br.len*.22,br.len*.1,.35,0,7);
+    ctx.fill();
+    ctx.restore();
+  }
+  sw(1);
+}
+/* lamp fixtures by biome (positions/lights untouched — only the housing changes) */
+let lampsWired=false;
+function wireLamps(){
+  lampsWired=true;
+  for(const lp of lamps)lp.st=BIOME[levelOf(lp.x)].lampStyle;
+  for(let i=0;i<lamps.length-1;i++){
+    const a=lamps[i],b=lamps[i+1];
+    if(a.st==='string'&&b.st==='string'&&b.x-a.x<760)a.wireTo=b;
+  }
+}
+function drawLampFixture(lp){
+  const st=lp.st;
+  if(st==='string'){
+    ctx.strokeStyle='rgba(8,10,12,.9)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(lp.x,cam.y-6);ctx.lineTo(lp.x,lp.y-8);ctx.stroke();
+    if(lp.wireTo){ /* sagging festoon wire + mini bulbs */
+      const b=lp.wireTo,sag=Math.min(46,(b.x-lp.x)*.1)+Math.sin(T*.5+lp.x*.01)*1.5;
+      const mx2=(lp.x+b.x)/2,my2=Math.max(lp.y,b.y)+sag;
+      ctx.strokeStyle='rgba(8,10,12,.85)';ctx.lineWidth=1.8;
+      ctx.beginPath();ctx.moveTo(lp.x,lp.y-6);ctx.quadraticCurveTo(mx2,my2,b.x,b.y-6);ctx.stroke();
+      for(let bt=1;bt<=4;bt++){
+        const q=bt/5,iq=1-q;
+        const bxq=iq*iq*lp.x+2*iq*q*mx2+q*q*b.x;
+        const byq=iq*iq*(lp.y-6)+2*iq*q*my2+q*q*(b.y-6);
+        ctx.fillStyle='rgba(231,227,158,.4)';
+        ctx.beginPath();ctx.arc(bxq,byq+3,4,0,7);ctx.fill();
+        ctx.fillStyle='#fdf6d8';
+        ctx.beginPath();ctx.arc(bxq,byq+3,2,0,7);ctx.fill();
+      }
+    }
+    ctx.fillStyle='#0c0f12';ctx.fillRect(lp.x-2.5,lp.y-13,5,7); /* socket, no cage */
+    ctx.fillStyle='rgba(231,227,158,.35)';
+    ctx.beginPath();ctx.arc(lp.x,lp.y-1,9,0,7);ctx.fill();
+    ctx.fillStyle='#fdf6d8';
+    ctx.beginPath();ctx.arc(lp.x,lp.y-1,5.5+Math.sin(T*8+lp.x)*.5,0,7);ctx.fill();
+  }else if(st==='paper'){
+    const sway=Math.sin(T*.8+lp.x*.013)*.06;
+    ctx.strokeStyle='rgba(8,10,12,.9)';ctx.lineWidth=1.8;
+    ctx.beginPath();ctx.moveTo(lp.x,cam.y-6);ctx.lineTo(lp.x,lp.y-20);ctx.stroke();
+    ctx.save();ctx.translate(lp.x,lp.y-20);ctx.rotate(sway);
+    ctx.fillStyle='#0c0f12';ctx.fillRect(-7,0,14,3);
+    const pg=ctx.createLinearGradient(-9,0,9,0);
+    pg.addColorStop(0,'rgba(255,196,120,.5)');
+    pg.addColorStop(.5,'rgba(255,238,205,.9)');
+    pg.addColorStop(1,'rgba(255,196,120,.5)');
+    ctx.fillStyle=pg;roundRect(-9,3,18,26,3);ctx.fill();
+    ctx.strokeStyle='rgba(140,80,40,.3)';ctx.lineWidth=1;
+    ctx.beginPath();
+    for(let ry=9;ry<27;ry+=6){ctx.moveTo(-8.4,ry);ctx.lineTo(8.4,ry);}
+    ctx.stroke();
+    ctx.fillStyle='#fdf6d8';
+    ctx.beginPath();ctx.arc(0,17,3.4+Math.sin(T*8+lp.x)*.4,0,7);ctx.fill();
+    ctx.fillStyle='#0c0f12';ctx.fillRect(-5,29,10,3);
+    ctx.restore();
+  }else if(st==='lantern'){ /* dock lantern with a little roof (reserved) */
+    ctx.strokeStyle='rgba(8,10,12,.9)';ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.moveTo(lp.x,cam.y-6);ctx.lineTo(lp.x,lp.y-18);ctx.stroke();
+    ctx.fillStyle='#0c0f12';
+    ctx.beginPath();ctx.moveTo(lp.x-12,lp.y-8);ctx.lineTo(lp.x,lp.y-18);
+    ctx.lineTo(lp.x+12,lp.y-8);ctx.closePath();ctx.fill();
+    ctx.fillStyle='rgba(231,227,158,.3)';ctx.fillRect(lp.x-7,lp.y-8,14,16);
+    ctx.fillStyle='#fdf6d8';
+    ctx.beginPath();ctx.arc(lp.x,lp.y,4.5+Math.sin(T*8+lp.x)*.4,0,7);ctx.fill();
+    ctx.strokeStyle='#0c0f12';ctx.lineWidth=1.4;ctx.strokeRect(lp.x-7,lp.y-8,14,16);
+  }else{ /* caged: original drawing, unchanged */
+    ctx.strokeStyle='rgba(8,10,12,.9)';ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.moveTo(lp.x,cam.y-6);ctx.lineTo(lp.x,lp.y-16);ctx.stroke();
+    ctx.fillStyle='#0c0f12';
+    ctx.beginPath();ctx.arc(lp.x,lp.y,13,Math.PI,0);ctx.fill();
+    ctx.fillStyle='rgba(231,227,158,.35)';
+    ctx.beginPath();ctx.arc(lp.x,lp.y-1,10.5,0,7);ctx.fill();
+    ctx.fillStyle='#fdf6d8';
+    ctx.beginPath();ctx.arc(lp.x,lp.y-1,6.5+Math.sin(T*8+lp.x)*.5,0,7);ctx.fill();
+    ctx.strokeStyle='#0c0f12';ctx.lineWidth=1.6;
+    ctx.beginPath();ctx.moveTo(lp.x-11,lp.y-2);ctx.lineTo(lp.x+11,lp.y-2);ctx.stroke();
+    ctx.beginPath();ctx.arc(lp.x,lp.y-1,10,0,Math.PI);ctx.stroke();
+    ctx.beginPath();ctx.arc(lp.x,lp.y-1,10,Math.PI*.25,Math.PI*.75);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(lp.x-7,lp.y-8);ctx.lineTo(lp.x-4,lp.y+8);ctx.moveTo(lp.x+7,lp.y-8);ctx.lineTo(lp.x+4,lp.y+8);ctx.stroke();
+  }
+}
 /* lamps: the lighting system. hung=caged ceiling lamp, post=commit lamppost handled via flags */
 const lamps=[];
 function lamp(x,y,r,warm){lamps.push({x,y,r:r||245,warm:warm==null?1:warm});}
@@ -1597,7 +1843,7 @@ function solidPlats(){
   return out;
 }
 function update(dt){
-  T+=dt;musicTick();updateMusic(dt);
+  T+=dt;musicTick();updateMusic(dt);updateWeather(dt);
   if(flashT>0)flashT-=dt;
   if(hurtT>0)hurtT-=dt;
   if(shakeT>0)shakeT-=dt;
@@ -1897,6 +2143,11 @@ function updateParticles(dt){
     if(p.moth)p.x+=Math.sin(T*6+p.ph)*40*dt;
     if(p.grow)p.r+=6*dt;
     p.x+=p.vx*dt;p.y+=p.vy*dt;
+    if(p.drop&&p.y>=GY-1){ /* ceiling drip lands: tiny two-fleck splash */
+      particles.splice(i,1);
+      particles.push({x:p.x-2,y:GY-3,vx:-26,vy:-64,life:.28,max:.28,c:p.c,r:1.1,g:520});
+      particles.push({x:p.x+2,y:GY-3,vx:26,vy:-72,life:.3,max:.3,c:p.c,r:1.1,g:520});
+    }
   }
 }
 /* ============================== decor ============================== */
@@ -2545,9 +2796,11 @@ function render(){
   const pOK=i=>plateImgs[i]&&plateImgs[i].complete&&plateImgs[i].naturalWidth>0;
   const plateOn=pOK(liP)&&(tP===0||pOK(ljP));
   if(plateOn){
-    setW(.92,.97);
-    const yT=cam.y*.97-6,yB2=GY-16,hP=yB2-yT,wP=hP*16/9,x0=cam.x*.92;
-    const drawP=(img,a)=>{
+    const drawP=(img,a,outd)=>{
+      /* outdoor plates read as DEEP background: slower parallax, full height to the treeline */
+      const pf=outd?.55:.92,pfy=outd?.7:.97;
+      setW(pf,pfy);
+      const yT=cam.y*pfy-(outd?10:6),yB2=outd?GY+30:GY-16,hP=yB2-yT,wP=hP*16/9,x0=cam.x*pf;
       ctx.globalAlpha=a;
       for(let i=Math.floor((x0-40)/wP);i*wP<x0+viewW+40;i++){
         const px2=i*wP;
@@ -2556,12 +2809,14 @@ function render(){
           ctx.drawImage(img,px2,yT,wP,hP);ctx.restore();
         }else ctx.drawImage(img,px2,yT,wP,hP);
       }
+      ctx.globalAlpha=1;
     };
-    drawP(plateImgs[liP],.94);
-    if(tP>0)drawP(plateImgs[ljP],.94*tP);
-    ctx.globalAlpha=1;
+    drawP(plateImgs[liP],.94,BIOME[liP].outdoor);
+    if(tP>0)drawP(plateImgs[ljP],.94*tP,BIOME[ljP].outdoor);
     setW(1);
   }
+  /* moon glow over the outdoor levels (deep parallax .3) */
+  drawOutdoorSky(m,setW);
   if(!plateOn){
   const gpx=cam.x*.45;
   ctx.globalAlpha=.14;
@@ -2732,6 +2987,7 @@ if(!plateOn){
       ctx.beginPath();ctx.arc(ex,ey+4,5,0,7);ctx.fill();
     }
   }
+  drawCanopy(m,setW);
   setW(1);
 
   /* midground giant wall props: the world is adult-sized, Cluu is not */
@@ -2914,8 +3170,10 @@ if(!plateOn){
   /* decor creatures: dolls, marionettes */
   drawDecorCreatures(m);
 
-  /* faint ember glow in foundry (restrained warm accent) */
-  if(m.lvl===3){
+  /* wet-floor sheen + splash ticks when it rains */
+  drawWetFloor(m);
+  /* faint ember glow in the boiler biome (restrained warm accent) */
+  if(BIOME[m.lvl].weather==='embers'){
     const mg=ctx.createLinearGradient(0,GY+40,0,GY+200);
     mg.addColorStop(0,'rgba(255,120,40,0)');mg.addColorStop(1,'rgba(255,120,40,.13)');
     ctx.fillStyle=mg;ctx.fillRect(cam.x-10,GY+40,viewW+20,200);
@@ -2927,24 +3185,11 @@ if(!plateOn){
   for(const r of SET.rugs)drawRugTV(r,m);
   for(const sp of SET.scraps)drawFloorScraps(sp[0],sp[1],m);
 
-  /* lamps (fixtures) */
+  /* lamps (fixtures) — housing styled per biome; light rig untouched */
+  if(!lampsWired)wireLamps();
   for(const lp of lamps){
-    if(lp.x<cam.x-60||lp.x>cam.x+viewW+60)continue;
-    ctx.strokeStyle='rgba(8,10,12,.9)';ctx.lineWidth=2.5;
-    ctx.beginPath();ctx.moveTo(lp.x,cam.y-6);ctx.lineTo(lp.x,lp.y-16);ctx.stroke();
-    ctx.fillStyle='#0c0f12';
-    ctx.beginPath();ctx.arc(lp.x,lp.y,13,Math.PI,0);ctx.fill();
-    /* amber glow ring around a near-white cream core (measured: core S<=24%, ring #e7e39e) */
-    ctx.fillStyle='rgba(231,227,158,.35)';
-    ctx.beginPath();ctx.arc(lp.x,lp.y-1,10.5,0,7);ctx.fill();
-    ctx.fillStyle='#fdf6d8';
-    ctx.beginPath();ctx.arc(lp.x,lp.y-1,6.5+Math.sin(T*8+lp.x)*.5,0,7);ctx.fill();
-    ctx.strokeStyle='#0c0f12';ctx.lineWidth=1.6;
-    ctx.beginPath();ctx.moveTo(lp.x-11,lp.y-2);ctx.lineTo(lp.x+11,lp.y-2);ctx.stroke();
-    ctx.beginPath();ctx.arc(lp.x,lp.y-1,10,0,Math.PI);ctx.stroke();
-    /* cage ribs (frame_0002 caged fan light) */
-    ctx.beginPath();ctx.arc(lp.x,lp.y-1,10,Math.PI*.25,Math.PI*.75);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(lp.x-7,lp.y-8);ctx.lineTo(lp.x-4,lp.y+8);ctx.moveTo(lp.x+7,lp.y-8);ctx.lineTo(lp.x+4,lp.y+8);ctx.stroke();
+    if(lp.x<cam.x-820||lp.x>cam.x+viewW+60)continue;
+    drawLampFixture(lp);
   }
   /* commit lampposts */
   for(const f of flags){
@@ -3305,6 +3550,8 @@ if(!plateOn){
     const py=(mo.y-cam.y+Math.sin(T*mo.sp*1.6+mo.ph*2)*20)*s*zk+azy;
     ctx.fillRect(px,py,1.6,1.6);
   }
+  // biome weather: rain streaks / drifting leaves (screen space, over the dark pass)
+  drawWeather(m);
   // flash (lamp strike)
   if(flashT>0){ctx.fillStyle=`rgba(255,240,210,${flashT*.5})`;ctx.fillRect(0,0,W,H);}
   // hurt: red vignette + rgb slip
@@ -3772,7 +4019,7 @@ function frame(now){
     for(const v of vents){
       if(v>cam.x-40&&v<cam.x+viewW+40&&rnd()<.12)spawnSteam(v+(rnd()-.5)*10,GY+2);
     }
-    if(levelOf(cam.x+viewW/2)===3&&rnd()<.3){
+    if(BIOME[levelOf(cam.x+viewW/2)].weather==='embers'&&rnd()<.3){
       particles.push({x:cam.x+rnd()*viewW,y:GY+80,vx:(rnd()-.5)*20,vy:-60-rnd()*70,
         life:1.6,max:1.6,c:'rgba(255,140,60,.8)',r:1.4+rnd()*1.8,g:-24});
     }
