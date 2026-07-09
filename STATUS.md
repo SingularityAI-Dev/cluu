@@ -1,17 +1,18 @@
 # Status
 
-> Updated: 2026-07-08
+> Updated: 2026-07-10
 
 ## Where we are
-Hard pivot (user-directed, 2026-07-08): the standalone CLUU arcade game replaced the Phaser/Next.js game as the product in this repo. The old game stack (Phaser scenes, Supabase auth, Zustand store, consent/analytics UI, sprites and asset tooling) is deleted. The repo is now the self-contained game at `public/arcade/index.html` served at `/`, plus a minimal Next.js shell exposing `/api/encounter/attempt` — NVIDIA NIM (z-ai/glm-5.2) prompt grading with a deterministic local fallback. Deployed public on Vercel.
+The arcade game is now a Little Nightmares-grade 2.5D diorama, rebuilt over three days of user-directed passes: measured teal palette and lighting from the actual LN3 reference frames, Gemini-generated painted backdrops per biome, redesigned found-object Cluu, puppet enemies with behavior variants, real secondary planes (under-floor pits, wall crawl-spaces), a biome journey (Boot Yards > Undersluice > Night Fair > Blueprint Woods > Summit Boiler) with post-boss destruction cinematics and travel transitions, and a full sampled soundtrack (per-level music, footsteps, duel impacts, UI sfx). Live public at cluu.vercel.app.
 
 ## Recent
-- Old game code removed (71 files): game/, app/play, app/auth, state/, ui/, lib/{supabase,migrate,consent,analytics,design}, proxy.ts, sprites, design tooling, supabase CLI config; deps pruned to next/react/zod/sentry
-- NIM grading adapter shipped: z-ai/glm-5.2 chosen after live discrimination + injection tests (llama-3.3-70b and minimax-m3 both failed); verified on production
-- Arcade game v4 (3-plane depth lanes, lane-hunters, camera dolly) published as artifact and deployed at `/` and `/arcade/`
+- Audio complete: biome-mapped level music with crossfades, boss/level stingers, stride-synced footsteps, duel hit/miss impacts, interaction sounds
+- Boss flow is cinematic end to end: entry hit + drifting tilted camera, collapse with riser and thud, iris wipe through the passage, captioned travel pan into the next biome
+- Painted-asset pipeline established: Gemini 2.5 Flash Image (user-funded prepay key in .env.local) generates LN-grade plates; ffmpeg converts curated wavs from assets/audio/
 
 ## Next
-- Wire the arcade game's encounters to `/api/encounter/attempt` so player-written prompts get live GLM-5.2 grading (the Library thesis: real prompts, real grades)
-- Author more `.logic.md` encounter contracts beyond meadow_withered_sunflower
-- Revisit the "Anthropic only in v1" lock (currently user-overridden for testing) before any launch
-- Latency: free NIM endpoint queue drifts (30s to 70s+ observed); adapter timeout 150s, route maxDuration 180s. Add the identical-prompt cache from the design doc if it hurts playtests. A grade with tokensUsed under ~100 means the local fallback answered, not NIM
+- Sloped walk-line refactor (user wants 30-degree inclines, e.g. descending the Undersluice): terraced ground pieces + step-up assist + per-piece floor y through renderer, pools, props, pits. Dedicated pass; touches every GY-anchored system
+- Wire encounters to /api/encounter/attempt for live GLM-5.2 prompt grading (the Library thesis, still the product core)
+- Pit/crawl ambience swap (Creepy cave ambience.wav is converted-ready in assets/audio)
+- Mite behavior tuning after user playtests; revisit "Anthropic only in v1" grading lock before launch
+- assets/refs/ and assets/audio/ are untracked local source libraries (900MB); keep out of git
