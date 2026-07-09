@@ -391,6 +391,7 @@ function initAudio(){
     const fb=AC.createGain();fb.gain.value=.36;
     const wet=AC.createGain();wet.gain.value=.32;
     delayNode.connect(fb);fb.connect(delayNode);delayNode.connect(wet);wet.connect(master);
+    loadSamples();
     noiseBuf=AC.createBuffer(1,AC.sampleRate*.4,AC.sampleRate);
     const d=noiseBuf.getChannelData(0);
     for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
@@ -417,8 +418,8 @@ function hiss(dur,vol,fc){
   src.connect(f);f.connect(g);g.connect(master);src.start(t);src.stop(t+dur);
 }
 const sfx={
-  jump(){hiss(.22,.07,2800);tone(240,.14,'triangle',.04,null,420);},
-  land(){tone(95,.1,'square',.045,null,60);hiss(.08,.045,900);},
+  jump(){hiss(.22,.07,2800);tone(240,.14,'triangle',.04,null,420);playBuf(buf.steps,.32,1.4);},
+  land(){tone(95,.1,'square',.045,null,60);hiss(.08,.045,900);playBuf(buf.steps,.5,.72);},
   cog(){tone(1040,.06,'square',.045);tone(1560,.16,'sine',.07,AC&&AC.currentTime+.05);},
   card(){tone(620,.3,'sine',.08,null,930,true);tone(930,.4,'sine',.05,AC&&AC.currentTime+.13,1240,true);},
   right(){[440,554,659,880].forEach((f,i)=>tone(f,.3,'triangle',.08,AC&&AC.currentTime+i*.09,null,true));},
@@ -434,6 +435,7 @@ const sfx={
 const BOX=[220,246.94,293.66,329.63,392,440,493.88,587.33];
 const PATTERN=[0,4,7,4,2,5,3,-1,1,4,6,4,0,3,2,-1];
 function musicTick(){
+  if(curTrack>=0)return;
   if(!AC||!musicOn)return;
   while(nextBeat<AC.currentTime+.3){
     const st=PATTERN[beatIdx%PATTERN.length];
@@ -445,6 +447,43 @@ function musicTick(){
     }
     beatIdx++;nextBeat+=.72;
   }
+}
+/* ============================== sampled audio ============================== */
+const ABASE=PBASE.replace('plates/','audio/');
+const buf={steps:[],bhits:[],lhits:[]};
+let samplesLoaded=false;
+function loadSamples(){
+  if(!AC||samplesLoaded)return;samplesLoaded=true;
+  const load=(url,arr,i)=>fetch(url).then(r=>r.arrayBuffer()).then(b=>AC.decodeAudioData(b))
+    .then(d=>{arr[i]=d;}).catch(()=>{});
+  for(let i=0;i<8;i++)load(ABASE+'step_'+(i+1)+'.mp3',buf.steps,i);
+  for(let i=0;i<5;i++)load(ABASE+'bhit_'+(i+1)+'.mp3',buf.bhits,i);
+  for(let i=0;i<2;i++)load(ABASE+'lhit_'+(i+1)+'.mp3',buf.lhits,i);
+}
+function playBuf(arr,vol,rate){
+  if(!AC)return false;
+  const list=arr.filter(Boolean);if(!list.length)return false;
+  const b=list[(Math.random()*list.length)|0];
+  const s=AC.createBufferSource(),g=AC.createGain();
+  s.buffer=b;s.playbackRate.value=rate||1;
+  g.gain.value=vol;s.connect(g);g.connect(master);
+  s.start();return true;
+}
+/* level music: two streaming elements, JS crossfade; synth music-box retires when real music runs */
+const musEls=[new Audio(),new Audio()];
+musEls.forEach(el=>{el.loop=true;el.preload='auto';});
+let musA=musEls[0],musB=musEls[1],curTrack=-1,musVol=.55,duck=1;
+function playLevelMusic(li){
+  if(li===curTrack)return;curTrack=li;
+  const t=musA;musA=musB;musB=t;
+  musA.src=ABASE+'music_l'+(li+1)+'.mp3';
+  musA.volume=0;musA.play().catch(()=>{});
+}
+function updateMusic(dt){
+  const target=musicOn?musVol*duck:0;
+  if(musA.src)musA.volume=Math.min(target,musA.volume+dt*.35);
+  if(musB.src){musB.volume=Math.max(0,musB.volume-dt*.35);
+    if(musB.volume===0&&!musB.paused)musB.pause();}
 }
 document.getElementById('mute').addEventListener('click',()=>{
   musicOn=!musicOn;
@@ -944,6 +983,7 @@ function skipIntro(){
 function endIntro(){
   if(!introSeq.on)return;
   introSeq.on=false;
+  playBuf(buf.lhits,.7);
   letterbox(false);state='play';
   flags[0].done=true;
   toast('✔ committed: "wake on the workbench"','lamps are checkpoints — small commits, safe travels');
@@ -1346,6 +1386,7 @@ function drawTravel(){
 function startBossIntro(bs){
   activeBoss=bs;state='cine';
   canvas.classList.add('tilt');
+  playBuf(buf.bhits,.9);duck=.22;
   keys.left=keys.right=keys.jump=false;
   bs.state='intro';bs.t=0;
   letterbox(true);sfx.reveal();
@@ -1404,6 +1445,7 @@ function duelKey(e){
 function duelLost(bs){
   duelEl.classList.remove('on');letterbox(false);
   canvas.classList.remove('tilt');
+  duck=1;
   bs.state='wait';bs.hp=3;bs.php=3;bs.phase=0;
   activeBoss=null;state='play';
   P.x=ARENA[bs.i].trig-260;P.y=GY;P.vx=0;P.vy=0;
@@ -1419,6 +1461,7 @@ function bossDefeated(bs){
     gates[bs.i].opening=true;sfx.gate();
     letterbox(false);
     canvas.classList.remove('tilt');
+    duck=1;
     chapterCard(LNAMES[bs.i][0]+' COMPLETE',B.win.split('.')[0]+'.',3800);
     toast('✔ committed: "'+LNAMES[bs.i][1].toLowerCase()+' — cleared"','warden defeated · gate open');
     sfx.commit();
@@ -1431,6 +1474,9 @@ function bossDefeated(bs){
 /* ============================== flow ============================== */
 function startGame(){
   initAudio();
+  musEls.forEach(el=>{el.src=ABASE+'music_l1.mp3';el.muted=true;
+    el.play().then(()=>{el.pause();el.muted=false;}).catch(()=>{el.muted=false;});});
+  setTimeout(()=>playLevelMusic(0),80);
   $('title').classList.remove('show');
   $('hud').classList.add('show');
   state='cine';letterbox(true);
@@ -1462,7 +1508,7 @@ function solidPlats(){
   return out;
 }
 function update(dt){
-  T+=dt;musicTick();
+  T+=dt;musicTick();updateMusic(dt);
   if(flashT>0)flashT-=dt;
   if(hurtT>0)hurtT-=dt;
   if(shakeT>0)shakeT-=dt;
@@ -1626,6 +1672,8 @@ function update(dt){
   if(P.blink>0)P.blink-=dt;
   if(Math.abs(P.vx)>40&&P.onGround){
     P.runPh+=dt*Math.abs(P.vx)*.048;
+    const sg=Math.sin(P.runPh)>=0;
+    if(sg!==P._stepSg){P._stepSg=sg;playBuf(buf.steps,.4,.9+Math.random()*.2);}
     if(rnd()<.08)spawnDust(P.x-P.dir*12,P.y,'rgba(150,140,120,.5)');
   }
   if(P.y>780)die();
@@ -1677,6 +1725,8 @@ function update(dt){
   const lv=levelOf(P.x);
   if(lv!==curLevel){
     curLevel=lv;updHUD();
+    playLevelMusic(lv);
+    playBuf(buf.lhits,.65);
     letterbox(true);
     chapterCard(LNAMES[lv][0],LNAMES[lv][1],2800);
     setTimeout(()=>{if(state==='play')letterbox(false);},3000);
