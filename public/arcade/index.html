@@ -235,7 +235,7 @@
 /* ============================== setup ============================== */
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-const VH = 540, GY = 460, LW = 17200;
+const VH = 540, GY = 460, LW = 22200;
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const TOUCHY  = matchMedia('(pointer: coarse)').matches;
 let dpr=1, s=1, viewW=960;
@@ -424,43 +424,28 @@ function hiss(dur,vol,fc){
   src.connect(f);f.connect(g);g.connect(master);src.start(t);src.stop(t+dur);
 }
 const sfx={
-  jump(){hiss(.12,.04,2800);playBuf(buf.jumpW,.34,1.05+Math.random()*.15);playBuf(buf.steps,.26,1.4);},
-  land(){tone(95,.1,'square',.045,null,60);hiss(.08,.045,900);playBuf(buf.steps,.5,.72);},
+  jump(){playBuf(buf.huff,.5,.95+Math.random()*.2)||playBuf(buf.jumpW,.3,1.1);playBuf(buf.jumpW,.16,1.15+Math.random()*.1);},
+  land(){playBuf(buf.steps,.5,.72);},
   cog(){
     const now=AC?AC.currentTime:0;
     cogStreak=(now-lastCogT<2)?Math.min(cogStreak+1,6):0;lastCogT=now;
-    if(!playBuf(buf.cogN,.5,1+cogStreak*.055)){tone(1040,.06,'square',.045);tone(1560,.16,'sine',.07,AC&&AC.currentTime+.05);}
+    playBuf(buf.cogN,.5,1+cogStreak*.055);
   },
-  card(){tone(620,.3,'sine',.08,null,930,true);tone(930,.4,'sine',.05,AC&&AC.currentTime+.13,1240,true);},
-  right(){[440,554,659,880].forEach((f,i)=>tone(f,.3,'triangle',.08,AC&&AC.currentTime+i*.09,null,true));},
-  wrong(){tone(140,.3,'sawtooth',.05,null,100);},
+  card(){playBuf(buf.cogN,.55,1.35);},
+  right(){playBuf(buf.uiC,.5,1.05);},
+  wrong(){playBuf(buf.uiG,.4,.95);},
   gate(){tone(80,1,'triangle',.1,null,40);hiss(1.2,.05,600);},
-  commit(){tone(523,.14,'triangle',.07);tone(784,.24,'triangle',.07,AC&&AC.currentTime+.11,null,true);},
-  hurt(){tone(190,.3,'square',.06,null,80);hiss(.2,.05,300);},
-  strike(){tone(1200,.08,'square',.06,null,300);tone(300,.4,'triangle',.09,null,90);hiss(.3,.06,4000);},
-  bossHit(){tone(160,.5,'sawtooth',.07,null,60);hiss(.4,.07,500);},
-  bossDie(){[196,155,123,98,73].forEach((f,i)=>tone(f,.6,'sawtooth',.05,AC&&AC.currentTime+i*.18,f*.6,true));hiss(2,.06,300);},
+  commit(){playBuf(buf.cogN,.4,.8);playBuf(buf.uiC,.25,.9);},
+  hurt(){playBuf(buf.whits,.8,.9)||hiss(.2,.05,300);playBuf(buf.steps,.5,.55);},
+  strike(){},
+  bossHit(){playBuf(buf.bhits,.4,.85);},
+  bossDie(){},
   reveal(){tone(55,2.2,'sine',.09);tone(58,2.2,'sine',.06);hiss(1.6,.04,200);},
 };
-const BOX=[220,246.94,293.66,329.63,392,440,493.88,587.33];
-const PATTERN=[0,4,7,4,2,5,3,-1,1,4,6,4,0,3,2,-1];
-function musicTick(){
-  if(curTrack>=0)return;
-  if(!AC||!musicOn)return;
-  while(nextBeat<AC.currentTime+.3){
-    const st=PATTERN[beatIdx%PATTERN.length];
-    if(st>=0){
-      tone(BOX[st],.7,'triangle',.03,nextBeat,null,true);      // music box
-      tone(BOX[st]*2,.5,'sine',.014,nextBeat+.02,null,true);
-      if(beatIdx%16===0)tone(55,4,'sine',.03,nextBeat);        // drone
-      if(beatIdx%16===8)tone(41.2,4,'sine',.024,nextBeat);
-    }
-    beatIdx++;nextBeat+=.72;
-  }
-}
+function musicTick(){} /* synth music engine removed: sampled soundtrack only */
 /* ============================== sampled audio ============================== */
 const ABASE=PBASE.replace('plates/','audio/');
-const buf={steps:[],bhits:[],lhits:[],ahits:[],whits:[],riser:[],uiC:[],uiD:[],uiG:[],whoosh:[],cogN:[],jumpW:[],moth:[],uiB:[]};
+const buf={steps:[],bhits:[],lhits:[],ahits:[],whits:[],riser:[],uiC:[],uiD:[],uiG:[],whoosh:[],cogN:[],jumpW:[],moth:[],uiB:[],huff:[],vo:[]};
 let samplesLoaded=false;
 function loadSamples(){
   if(!AC||samplesLoaded)return;samplesLoaded=true;
@@ -480,6 +465,7 @@ function loadSamples(){
   for(let i=0;i<2;i++)load(ABASE+'jump_'+(i+1)+'.mp3',buf.jumpW,i);
   load(ABASE+'moth_1.mp3',buf.moth,0);
   load(ABASE+'ui_beep.mp3',buf.uiB,0);
+  for(let i=0;i<5;i++)load(ABASE+'huff_'+(i+1)+'.mp3',buf.huff,i);
 }
 function playBuf(arr,vol,rate){
   if(!AC)return false;
@@ -500,18 +486,25 @@ function playLevelMusic(li){
   musA.src=li===-2?ABASE+'music_title.mp3':ABASE+'music_l'+([1,4,2,3,5][li])+'.mp3';
   musA.volume=0;musA.play().catch(()=>{});
 }
-/* title theme starts on the first gesture the browser will honor */
-function armTitleMusic(){
+/* title theme: try to start IMMEDIATELY; if the browser blocks autoplay,
+   the very first gesture (key, click, touch) starts it instead */
+function tryTitleMusic(){
+  if(state!=='title'||curTrack===-2)return;
+  musA.src=ABASE+'music_title.mp3';
+  musA.volume=0;
+  musA.play().then(()=>{curTrack=-2;initAudio();}).catch(()=>{});
+}
+setTimeout(tryTitleMusic,0); /* after init: 'state' lives below this section */
+addEventListener('visibilitychange',()=>{if(!document.hidden)tryTitleMusic();});
+{
   const fire=()=>{
     if(state!=='title')return;
     initAudio();
-    playLevelMusic(-2);
-    playBuf(buf.uiD,.25);
+    if(curTrack!==-2)playLevelMusic(-2);
   };
   addEventListener('pointerdown',fire,{once:true});
   addEventListener('keydown',fire,{once:true});
 }
-armTitleMusic();
 /* UI sfx: soft beep on hover, confirm on press, for every button in the game */
 {
   let lastHover=0;
@@ -535,6 +528,7 @@ function updateMusic(dt){
 document.getElementById('mute').addEventListener('click',()=>{
   musicOn=!musicOn;
   if(master)master.gain.value=musicOn?.8:0;
+  voEl.volume=musicOn?.95:0;
   document.getElementById('mute').innerHTML=musicOn?'&#9836;':'&#9834;&#824;';
 });
 
@@ -543,6 +537,7 @@ const keys={left:false,right:false,jump:false};
 let jumpPressed=false,interactPressed=false,lanePressed=false,fwdPressed=false;
 function kd(e){
   if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key))e.preventDefault();
+  if(state==='cine'&&echoAct.on){if(e.key==='e'||e.key==='E'||e.key===' '||e.key==='Escape')endEcho();return;}
   if(state==='cine'&&introSeq.on){skipIntro();return;}
   if(state==='title'&&(e.key==='Enter'||e.key===' ')){startGame();return;}
   if(state==='modal'){modalKey(e);return;}
@@ -585,7 +580,9 @@ if(TOUCHY){
 }
 
 /* ============================== levels & palettes ============================== */
-const LB=[0,3400,6800,10200,13600,LW];   // level boundaries
+/* levels grow as you progress: EXT[i] px inserted before each arena at init */
+const EXT=[400,700,1000,1300,1600];
+const LB=[0,3800,7900,12300,17000,LW];   // level boundaries (post-extension)
 const LNAMES=[
   ['LEVEL I','The Cold Boot Yards'],
   ['LEVEL II','The Undersluice'],
@@ -776,6 +773,20 @@ bcog(7050,408);bcog(7180,408);bcog(7310,408);
 bcog(14800,408);bcog(14930,302);bcog(15060,408);bcog(15180,408);
 bcog(4200,408,2);bcog(4380,408,2);bcog(4560,408,2);bcog(4740,408,2);
 bcog(14850,408,2);bcog(15020,408,2);
+/* Keeper's Echoes: brass gramophones; E plays a voiced teaching (vo_N.mp3) */
+const ECHOES=[
+ {x:1200,vo:1,t:"Before the dark came, keeper, we spoke to the Engine in plain words. Not incantations. Say what you want changed, and where, and why. The machine honours clarity."},
+ {x:0,vo:2,gap:0,t:"The companion remembers this workshop through one scroll: CLAUDE.md. What you write there, it knows every morning. Write down how the works are built, and you will only say it once."},
+ {x:4350,vo:3,t:"Context, little one, is a lamp's oil. Long sessions burn it low, and the light grows strange. When the companion rambles, clear the chamber and begin again."},
+ {x:0,vo:4,gap:1,t:"Point, do not gesture. Type the little @ sigil and name the file: explain at boiler dot j s. Precision is respect, and respect is speed."},
+ {x:8300,vo:5,t:"A plan is a lantern held ahead of the feet. Before any great cutting, say: make a plan first, touch nothing. Read it slowly. Then let the blades move."},
+ {x:0,vo:6,gap:2,t:"When the machine runs somewhere you did not intend, press Escape. It stops mid-stride, and takes no offence. The hand commands. The machine serves."},
+ {x:11500,vo:7,t:"Risky work belongs on a branch, keeper. Main is the town square. Branches are the workshop cellar. Break things where nobody lives."},
+ {x:0,vo:8,gap:3,t:"Never trust a fix you cannot prove. Ask the companion to run the tests, and watch them pass with your own eyes. Proof, keeper. Hope is not a material."},
+ {x:13900,vo:9,t:"One day you will write a prompt so true it becomes a tool. Keep those. A library of your best words is worth more than a chest of cogs."},
+ {x:0,vo:10,gap:4,t:"The Bug is not evil. It is only every unread error, grown fat in the dark. Read the whole trace aloud, and watch how small it becomes."},
+];
+for(const ec of ECHOES){ec.done=false;}
 /* brass moths: five rare, skittish; each grants a permanent duel heart */
 const MOTHS=[
  {x:2270,y:GY-40,lane:-1,zx1:1800,zx2:2360,skit:true,ph:0.7},
@@ -1945,6 +1956,7 @@ function update(dt){
     if(bs.state==='dying'){bs.t+=dt;
       if(rnd()<.8)spawnMoth(bs.x+(rnd()-.5)*160,280+(rnd()-.5)*120);}
   }
+  if(state==='cine'&&echoAct.on){updateEcho(dt);updateParticles(dt);return;}
   if(state==='cine'&&travel.on){updateTravel(dt);updateParticles(dt);return;}
   if(state==='cine'&&introSeq.on){updateIntro(dt);updateParticles(dt);return;}
   if(state==='cine'&&activeBoss){  // camera drifts to arena during intro
@@ -2039,7 +2051,7 @@ function update(dt){
        Math.abs(P.x-h.x)<24&&P.y>GY-40&&P.deathT<=0)die();
   }
 
-  const ACC=950,AIR=780,FRI=900,MAX=252;
+  const ACC=760,AIR=600,FRI=780,MAX=208;
   let ax=0;
   if(keys.left)ax-=1;if(keys.right)ax+=1;
   if(ax!==0){
@@ -2118,7 +2130,7 @@ function update(dt){
   }else if(P.idleT>0){P.idleT=0;P.glanceT=0;P.nextGlance=4+rnd()*3;}
   if(P.glanceT>0)P.glanceT-=dt;
   if(Math.abs(P.vx)>40&&P.onGround){
-    P.runPh+=dt*Math.abs(P.vx)*.048;
+    P.runPh+=dt*Math.abs(P.vx)*.052;
     const sg=Math.sin(P.runPh)>=0;
     if(sg!==P._stepSg){P._stepSg=sg;playBuf(buf.steps,.4,.9+Math.random()*.2);}
     if(rnd()<.08)spawnDust(P.x-P.dir*12,P.y,'rgba(150,140,120,.5)');
@@ -2187,10 +2199,12 @@ function update(dt){
       toast('the shutter is sealed','the terminal shrine just behind you holds the answer — press E there');
     }
   });
-  let near=null;
+  let near=null,nearE=null;
   if(P.lane===0)for(const sh of shrines){if(Math.abs(P.x-sh.x)<70&&P.y>GY-80){near=sh;break;}}
-  $('ti').classList.toggle('on',!!near&&TOUCHY);
+  if(!near&&P.lane===0)for(const ec of ECHOES){if(Math.abs(P.x-ec.x)<60&&P.y>GY-80){nearE=ec;break;}}
+  $('ti').classList.toggle('on',(!!near||!!nearE)&&TOUCHY);
   if(near&&interactPressed)openLesson(near.li);
+  else if(nearE&&interactPressed)startEcho(nearE);
   interactPressed=false;
 
   // boss triggers
@@ -2213,7 +2227,7 @@ function update(dt){
     chapterCard(LNAMES[lv][0],LNAMES[lv][1],2800);
     setTimeout(()=>{if(state==='play')letterbox(false);},3000);
   }
-  const tx=clamp(P.x-viewW*.42+P.vx*.26,0,LW-viewW);
+  const tx=clamp(P.x-viewW*.42+P.vx*.3,0,LW-viewW);
   const ty=clamp(P.y-322,-720,44); /* 44: feet at .77H with a floor apron below (ref median .76-.78H) */
   const k=1-Math.exp(-4.2*dt);
   cam.x+=(tx-cam.x)*k;cam.y+=(ty-cam.y)*k;
@@ -2752,6 +2766,137 @@ function drawFloorScraps(x1,x2,m){
   seed=s0;
 }
 
+/* ============================== world extension ============================== */
+/* Insert EXT[i] px of new road before each arena. Everything authored in the original
+   coordinates shifts; the fresh stretches get floor, lamps, cogs, platforms, an extra
+   crawler in later levels, and a Keeper's Echo. Runs once at init. */
+(function extendWorld(){
+  const seams=ARENA.map(a=>a.trig-40);           /* original coords */
+  const delta=x=>{let d=0;for(let j=0;j<seams.length;j++)if(x>=seams[j])d+=EXT[j];return d;};
+  const shift=(o,k)=>{if(o[k]!=null)o[k]+=delta(o[k]);};
+  /* ground pieces that straddle a seam grow; everything else past it slides */
+  for(const p of plats){
+    let grown=false;
+    if(p.ground)for(let j=0;j<seams.length;j++)
+      if(p.x<seams[j]&&p.x+p.w>seams[j]){p.w+=EXT[j];grown=true;}
+    if(p.x>=seams[0]||true){const d=delta(p.x);p.x+=d;if(p.bx!=null)p.bx+=d;}
+  }
+  for(const a of ARENA){a.trig+=delta(a.trig);a.cx+=delta(a.cx);a.gx+=delta(a.gx);}
+  for(const g of gates)shift(g,'x');
+  for(const g of lessonGates)shift(g,'x');
+  for(const bs of bossState)shift(bs,'x');
+  for(const o of flags)shift(o,'x');
+  for(const o of signs)shift(o,'x');
+  for(const o of cardsArr)shift(o,'x');
+  for(const b2 of bugs){const d=delta(b2.x1);b2.x+=d;b2.x1+=d;b2.x2+=d;}
+  for(const z of depthZones){const d=delta(z.x1);z.x1+=d;z.x2+=d;}
+  for(const p of backPlats)shift(p,'x');
+  for(const h of hunters){const d=delta(h.zx1);h.x+=d;h.x1+=d;h.x2+=d;h.zx1+=d;h.zx2+=d;}
+  for(const c of cogs)shift(c,'x');
+  for(const lp of lamps)shift(lp,'x');
+  for(const sf of shafts)shift(sf,'x');
+  for(const sh of shrines)shift(sh,'x');
+  for(const z of underZones){const d=delta(z.x1);z.x1+=d;z.x2+=d;}
+  for(const u of UPL)shift(u,'x');
+  for(const g of grates)shift(g,'x');
+  for(const mo of MOTHS){const d=delta(mo.x);mo.x+=d;mo.fx+=d;mo.zx1+=d;mo.zx2+=d;}
+  for(const d2 of seatedDolls)shift(d2,'x');
+  for(const d2 of shelfDolls)shift(d2,'x');
+  for(const h2 of horseDecor)shift(h2,'x');
+  for(const t2 of tanks)shift(t2,'x');
+  for(let i=0;i<vents.length;i++)vents[i]+=delta(vents[i]);
+  SET.bulbs=SET.bulbs.map(x=>x+delta(x));
+  SET.rugs=SET.rugs.map(x=>x+delta(x));
+  for(const c2 of SET.crates)c2[0]+=delta(c2[0]);
+  for(const sp of SET.scraps){sp[0]+=delta(sp[0]);sp[1]+=delta(sp[1]);}
+  for(const o of fgOcc)o.lx+=delta(o.lx/1.35)*1.35;
+  for(const ec of ECHOES)if(!('gap' in ec))ec.x+=delta(ec.x);
+  /* fill the new stretches (new-coordinate space) */
+  const s0=seed;seed=771223;
+  let acc=0;
+  for(let j=0;j<seams.length;j++){
+    const gs=seams[j]+acc;acc+=EXT[j];
+    const gl=EXT[j];
+    for(let lx2=gs+220;lx2<gs+gl-120;lx2+=460){
+      const lp={x:lx2,y:268,r:230,warm:1,onFloor:true};lamps.push(lp);
+    }
+    for(let cx2=gs+120;cx2<gs+gl-80;cx2+=170)
+      cogs.push({x:cx2,y:408,got:false,ph:rnd()*6.28,lane:0});
+    if(gl>=700){
+      plats.push({x:gs+gl*.42,y:352,w:110,h:20});
+      cogs.push({x:gs+gl*.42+55,y:300,got:false,ph:rnd()*6.28,lane:0});
+    }
+    if(gl>=1000){
+      plats.push({x:gs+gl*.62,y:258,w:100,h:20});
+      cogs.push({x:gs+gl*.62+50,y:206,got:false,ph:rnd()*6.28,lane:0});
+      bugs.push({x1:gs+gl*.15,x2:gs+gl*.85,y:GY,spd:88+j*7,x:gs+gl*.2,dir:1,
+        mode:['skitter','stalker','sleeper'][j%3],sc2:.9+j*.12,tmr:0,burst:false,awake:0,tell:0});
+    }
+    const ec=ECHOES.find(e=>e.gap===j);
+    if(ec)ec.x=gs+110;
+  }
+  seed=s0;
+})();
+/* ============================== keeper's echo playback ============================== */
+const voEl=new Audio();voEl.preload='none';
+let echoAct={on:false,idx:-1,t:0,dur:4};
+function startEcho(ec){
+  if(echoAct.on)return;
+  const idx=ECHOES.indexOf(ec);
+  echoAct={on:true,idx,t:0,dur:Math.max(5,ec.t.length*.062)};
+  state='cine';letterbox(true);duck=.28;
+  playBuf(buf.uiD,.35,.8);
+  voEl.src=ABASE+'vo_'+ec.vo+'.mp3';
+  voEl.currentTime=0;voEl.volume=musicOn?.95:0;
+  voEl.play().catch(()=>{});
+  ec.done=true;
+}
+function endEcho(){
+  if(!echoAct.on)return;
+  echoAct.on=false;
+  try{voEl.pause();}catch(e){}
+  letterbox(false);duck=1;state='play';
+}
+function updateEcho(dt){
+  echoAct.t+=dt;
+  const ec=ECHOES[echoAct.idx];
+  const tx2=clamp(ec.x-viewW*.5,0,LW-viewW);
+  cam.x+=(tx2-cam.x)*(1-Math.exp(-2.4*dt));
+  const done=(voEl.duration&&!isNaN(voEl.duration)&&voEl.currentTime>=voEl.duration-.05&&echoAct.t>2)
+    ||(voEl.paused&&echoAct.t>echoAct.dur)
+    ||echoAct.t>Math.max(echoAct.dur,(voEl.duration||0)+1.2);
+  if(done)endEcho();
+}
+function drawEchoObj(ec){
+  const x=ec.x,sway=Math.sin(T*.9+x*.02)*.03;
+  contactShadow(x,22,.3);
+  /* side table */
+  ctx.fillStyle='#12100c';ctx.fillRect(x-20,GY-34,40,6);
+  ctx.fillRect(x-16,GY-28,5,28);ctx.fillRect(x+11,GY-28,5,28);
+  /* gramophone box + crank */
+  ctx.fillStyle='#1a140c';roundRect(x-14,GY-52,28,18,3);ctx.fill();
+  ctx.strokeStyle='#8a6a33';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(x+14,GY-45);ctx.lineTo(x+20,GY-45);ctx.arc(x+20,GY-42,3,-.5,2);ctx.stroke();
+  /* brass horn */
+  ctx.save();ctx.translate(x-2,GY-52);ctx.rotate(-.5+sway);
+  const hg2=ctx.createLinearGradient(0,-30,0,0);
+  hg2.addColorStop(0,'#c9a562');hg2.addColorStop(.6,'#8a6a33');hg2.addColorStop(1,'#5a4522');
+  ctx.fillStyle=hg2;
+  ctx.beginPath();ctx.moveTo(-3,0);ctx.quadraticCurveTo(-4,-14,-16,-26);
+  ctx.lineTo(6,-34);ctx.quadraticCurveTo(4,-16,3,0);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.ellipse(-5,-30,13,7,-.7,0,7);ctx.fill();
+  ctx.fillStyle='#241a0e';
+  ctx.beginPath();ctx.ellipse(-5,-30,8,4,-.7,0,7);ctx.fill();
+  ctx.restore();
+  if(ec.done){
+    ctx.fillStyle='rgba(123,224,173,.6)';ctx.font='bold 11px ui-monospace,monospace';
+    ctx.textAlign='center';ctx.fillText('\u2713',x,GY-62);ctx.textAlign='left';
+  }
+  if(Math.abs(P.x-x)<60&&P.lane===0&&state==='play'){
+    ctx.fillStyle='rgba(232,192,106,.85)';ctx.font='bold 13px ui-monospace,monospace';
+    ctx.textAlign='center';ctx.fillText('E',x,GY-70+Math.sin(T*3)*3);ctx.textAlign='left';
+  }
+}
 /* ============================== lights ============================== */
 function collectLights(){
   const L=[];
@@ -2766,6 +2911,7 @@ function collectLights(){
   for(const bug of bugs)if(vis(bug.x,80))L.push({x:bug.x,y:bug.y-14,r:46*bug.sc2,c:'255,90,80',a:(bug.mode==='sleeper'&&bug.awake<=0)?.12:.32,flick:.25});
   for(const sg of signs)if(vis(sg.x,80))L.push({x:sg.x,y:GY-46,r:70,c:'255,216,150',a:.22,flick:.04});
   for(const mo of MOTHS)if(!mo.got&&mo.lane===0&&vis(mo.fx,60))L.push({x:mo.fx,y:mo.y,r:44,c:'232,192,106',a:.3,flick:.1});
+  for(const ec of ECHOES)if(vis(ec.x,90))L.push({x:ec.x,y:GY-46,r:80,c:'232,192,106',a:.28,flick:.05});
   for(const bx of SET.bulbs)if(vis(bx,340)){
     L.push({x:bx,y:250,r:200,c:'255,222,160',a:.8,flick:.07});
     L.push({x:bx,y:GY-14,r:130,c:'255,216,150',a:.45,flick:.07});
@@ -3395,6 +3541,11 @@ if(!plateOn){
     }
   });
 
+  /* keeper's echoes */
+  for(const ec of ECHOES){
+    if(ec.x<cam.x-80||ec.x>cam.x+viewW+80)continue;
+    drawEchoObj(ec);
+  }
   /* shrines */
   for(const sh of shrines){
     if(sh.x<cam.x-100||sh.x>cam.x+viewW+100)continue;
@@ -3658,6 +3809,24 @@ if(!plateOn){
   }
   // biome weather: rain streaks / drifting leaves (screen space, over the dark pass)
   drawWeather(m);
+  // keeper's echo subtitles
+  if(echoAct.on){
+    const ec=ECHOES[echoAct.idx];
+    const a3=Math.min(1,echoAct.t/.6);
+    ctx.globalAlpha=a3;
+    ctx.font='500 '+Math.round(innerHeight*.026)+'px Iowan Old Style,Palatino,Georgia,serif';
+    ctx.textAlign='center';
+    const words=ec.t.split(' ');const lines=[];let ln='';
+    for(const w2 of words){const t2=ln?ln+' '+w2:w2;
+      if(ctx.measureText(t2).width>innerWidth*.62&&ln){lines.push(ln);ln=w2;}else ln=t2;}
+    if(ln)lines.push(ln);
+    const lh2=innerHeight*.036,y0=innerHeight*.82-lines.length*lh2/2;
+    ctx.fillStyle='rgba(2,5,6,.55)';
+    ctx.fillRect(innerWidth*.14,y0-lh2*.9,innerWidth*.72,lines.length*lh2+lh2*.6);
+    ctx.fillStyle='rgba(233,226,206,.92)';
+    lines.forEach((l2,i2)=>ctx.fillText(l2,innerWidth/2,y0+i2*lh2));
+    ctx.textAlign='left';ctx.globalAlpha=1;
+  }
   // flash (lamp strike)
   if(flashT>0){ctx.fillStyle=`rgba(255,240,210,${flashT*.5})`;ctx.fillRect(0,0,W,H);}
   // hurt: red vignette + rgb slip
@@ -3714,8 +3883,8 @@ function drawBoss(bs,m){
   let alpha=1,scaleY=1,eyeA=.22;
   if(bs.state==='intro')eyeA=clamp(bs.t-.8,0,1);
   if(bs.state==='duel')eyeA=1;
-  if(bs.state==='dying'){eyeA=clamp(1-bs.t/1.2,0,1);alpha=clamp(1-Math.max(0,bs.t-1.8)/.8,0,1);}
-  if(bs.state==='dead'){alpha=.5;scaleY=.4;eyeA=0;}
+  if(bs.state==='dying'){eyeA=clamp(1-bs.t/1.2,0,1);alpha=clamp(1-Math.max(0,bs.t-1.7)/.7,0,1);}
+  if(bs.state==='dead')return; /* the broken warden is gone: moths carried it off */
   const bob=bs.state==='dead'?0:Math.sin(T*1.1+bs.i)*8;
   const jit=(bs.state==='dying'&&!REDUCED)?3:(bs.hitT>0?4:((bs.state==='duel'&&bs.hp<=1&&!REDUCED)?2.2:0));
   const jx=jit?(rnd()-.5)*jit:0,jy=jit?(rnd()-.5)*jit:0;
@@ -3726,13 +3895,13 @@ function drawBoss(bs,m){
   if(bs.state==='intro'){const rr=1-Math.pow(1-clamp(bs.riseT||0,0,1),3);
     byBase+=(1-rr)*260;alpha*=clamp(.25+(bs.riseT||0)*1.5,0,1);}
   rot2+=(bs.tiltT||0)*.07*(bs.i%2?1:-1);
-  if(bs.state==='dying'){ /* the warden falls, hits the boards, dust */
+  if(bs.state==='dying'){ /* the warden topples, hits the boards, dissolves into moths */
     const ft=clamp(bs.t/1.6,0,1),fe=ft*ft;
-    byBase+=fe*(GY-70-290);
-    scaleY*=1-.5*fe;
-    rot2=fe*.14*(bs.i%2?1:-1);
+    byBase+=fe*(GY-150-290);
+    rot2=fe*.5*(bs.i%2?1:-1);
     if(ft>=1&&!bs._thud){bs._thud=true;shakeT=REDUCED?0:.5;sfx.land();playBuf(buf.ahits,1,.72);
-      for(let i2=0;i2<18;i2++)spawnDust(bs.x+(rnd()-.5)*180,GY-6,'rgba(120,110,90,.6)');}
+      for(let i2=0;i2<18;i2++)spawnDust(bs.x+(rnd()-.5)*180,GY-6,'rgba(120,110,90,.6)');
+      for(let i2=0;i2<22;i2++)spawnMoth(bs.x+(rnd()-.5)*200,GY-60-rnd()*120);}
   }
   /* the reveal is the shadow: wall-sized silhouette behind the warden (frame_0090) */
   if(bs.state!=='dead'&&eyeA>.02&&alpha>.02){
