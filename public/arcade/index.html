@@ -451,7 +451,7 @@ function musicTick(){
 }
 /* ============================== sampled audio ============================== */
 const ABASE=PBASE.replace('plates/','audio/');
-const buf={steps:[],bhits:[],lhits:[]};
+const buf={steps:[],bhits:[],lhits:[],ahits:[],whits:[],riser:[],uiC:[],uiD:[],uiG:[],whoosh:[]};
 let samplesLoaded=false;
 function loadSamples(){
   if(!AC||samplesLoaded)return;samplesLoaded=true;
@@ -459,7 +459,14 @@ function loadSamples(){
     .then(d=>{arr[i]=d;}).catch(()=>{});
   for(let i=0;i<8;i++)load(ABASE+'step_'+(i+1)+'.mp3',buf.steps,i);
   for(let i=0;i<5;i++)load(ABASE+'bhit_'+(i+1)+'.mp3',buf.bhits,i);
-  for(let i=0;i<2;i++)load(ABASE+'lhit_'+(i+1)+'.mp3',buf.lhits,i);
+  for(let i=0;i<4;i++)load(ABASE+'lhit_'+(i+1)+'.mp3',buf.lhits,i);
+  for(let i=0;i<2;i++)load(ABASE+'ahit_'+(i+1)+'.mp3',buf.ahits,i);
+  for(let i=0;i<2;i++)load(ABASE+'whit_'+(i+1)+'.mp3',buf.whits,i);
+  for(let i=0;i<2;i++)load(ABASE+'whoosh_'+(i+1)+'.mp3',buf.whoosh,i);
+  load(ABASE+'riser_1.mp3',buf.riser,0);
+  load(ABASE+'ui_confirm.mp3',buf.uiC,0);
+  load(ABASE+'ui_data.mp3',buf.uiD,0);
+  load(ABASE+'ui_glitch.mp3',buf.uiG,0);
 }
 function playBuf(arr,vol,rate){
   if(!AC)return false;
@@ -1239,6 +1246,7 @@ function drawIntroWake(){
 const modalEl=$('modal');
 let modalOpts=[],modalLesson=-1;
 function openLesson(li){
+  playBuf(buf.uiD,.4);
   const L=LESSONS[li];
   modalLesson=li;state='modal';
   if(li===1&&cardsGot<3){
@@ -1291,7 +1299,7 @@ function answer(li,o,b){
   if(o.ok){
     b.classList.add('right');
     modalOpts.forEach(({b:x})=>x.disabled=true);
-    sfx.right();
+    sfx.right();playBuf(buf.uiC,.5);
     const sEl=document.createElement('div');
     sEl.className='success';sEl.textContent=L.success;
     modalEl.querySelector('.termbody').appendChild(sEl);
@@ -1304,7 +1312,7 @@ function answer(li,o,b){
       }
     },1500);
   }else{
-    b.classList.add('wrong');sfx.wrong();
+    b.classList.add('wrong');sfx.wrong();playBuf(buf.uiG,.4);
     $('mhint').textContent='✦ '+(o.hint||'Not that one, keeper.');
     setTimeout(()=>b.classList.remove('wrong'),450);
   }
@@ -1343,7 +1351,7 @@ const TRAVEL=[
  ['Through the trees, the works rise black against the sky.','The Summit Boiler. Something enormous is waiting.'],
 ];
 let travel={on:false,t:0,li:0};
-function startTravel(li){travel.on=true;travel.t=0;travel.li=li;state='cine';letterbox(true);sfx.reveal();}
+function startTravel(li){travel.on=true;travel.t=0;travel.li=li;state='cine';letterbox(true);sfx.reveal();playBuf(buf.whoosh,.7);}
 function updateTravel(dt){
   travel.t+=dt;
   if(travel.t>=4.6){
@@ -1436,6 +1444,7 @@ function duelAnswer(bs,o,b){
     bs.hp--;bs.hitT=.6;bs.phase++;
     flashT=REDUCED?0:.55;shakeT=REDUCED?0:.4;
     sfx.strike();setTimeout(()=>sfx.bossHit(),120);
+    playBuf(buf.ahits,.9);
     pips($('bpips'),bs.hp,'b',3);
     for(let i=0;i<16;i++)spawnSpark(bs.x,bs.y||300,'#ffbe5c');
     if(bs.hp<=0){setTimeout(()=>bossDefeated(bs),900);}
@@ -1444,6 +1453,7 @@ function duelAnswer(bs,o,b){
     b.classList.add('wrong');b.disabled=true;
     bs.php--;bs.lungeT=.7;hurtT=REDUCED?.2:.8;shakeT=REDUCED?0:.55;
     sfx.hurt();sfx.wrong();
+    playBuf(buf.whits,.75);
     pips($('ppips'),bs.php,'p',3);
     $('dhint').textContent='✦ '+(o.hint||'It strikes! Not that one, keeper.');
     if(bs.php<=0)setTimeout(()=>duelLost(bs),900);
@@ -1465,6 +1475,7 @@ function duelLost(bs){
 function bossDefeated(bs){
   bs.state='dying';bs.t=0;
   state='cine'; /* camera drifts to the arena while the warden falls */
+  playBuf(buf.riser,.8);
   duelEl.classList.remove('on');
   sfx.bossDie();
   const B=BOSSES[bs.i];
@@ -1577,7 +1588,7 @@ function update(dt){
       P.lane=0;P.uz=null;sfx.jump();
       for(let i=0;i<6;i++)spawnSteam(P.x+(rnd()-.5)*20,P.y);
     }else if(P.onGround&&P.deathT<=0&&dz&&P.zl===0&&P.lane===0&&dz.maxLane>0&&groundUnder(BPL[1],P.x,P.y)){
-      P.lane=1;sfx.jump();
+      P.lane=1;sfx.jump();playBuf(buf.whoosh,.4,1.2);
       for(let i=0;i<6;i++)spawnSteam(P.x+(rnd()-.5)*20,P.y);
     }else if(P.onGround&&P.deathT<=0&&dz&&P.lane>0&&P.lane<dz.maxLane&&groundUnder(BPL[P.lane+1],P.x,P.y)){
       P.lane++;sfx.jump();
@@ -1595,7 +1606,7 @@ function update(dt){
         for(let i=0;i<6;i++)spawnSteam(P.x+(rnd()-.5)*20,P.y);
       }else{sfx.wrong();toast('no footing ahead here','walk on — step forward where the floor is solid');}
     }else if(P.lane===0&&P.deathT<=0&&onFloorPiece&&gn){ /* drop into the pit */
-      P.lane=-1;P.uz=underZones[gn.z];sfx.land();
+      P.lane=-1;P.uz=underZones[gn.z];sfx.land();playBuf(buf.whoosh,.4,.85);
       for(let i=0;i<8;i++)spawnDust(P.x+(rnd()-.5)*22,P.y,'rgba(120,110,90,.5)');
     }else if(onFloorPiece&&P.deathT<=0&&P.lane===0&&P.zl<1){
       P.zl++;hiss(.14,.04,1200);
@@ -3245,7 +3256,7 @@ function drawBoss(bs,m){
     byBase+=fe*(GY-70-290);
     scaleY*=1-.5*fe;
     rot2=fe*.14*(bs.i%2?1:-1);
-    if(ft>=1&&!bs._thud){bs._thud=true;shakeT=REDUCED?0:.5;sfx.land();
+    if(ft>=1&&!bs._thud){bs._thud=true;shakeT=REDUCED?0:.5;sfx.land();playBuf(buf.ahits,1,.72);
       for(let i2=0;i2<18;i2++)spawnDust(bs.x+(rnd()-.5)*180,GY-6,'rgba(120,110,90,.6)');}
   }
   /* the reveal is the shadow: wall-sized silhouette behind the warden (frame_0090) */
