@@ -387,6 +387,7 @@ const TEX=(function(){
 
 /* ============================== audio ============================== */
 let AC=null,master=null,delayNode=null,musicOn=true,nextBeat=0,beatIdx=0,noiseBuf=null;
+let cogStreak=0,lastCogT=-9;
 function initAudio(){
   if(AC)return;
   try{
@@ -423,9 +424,13 @@ function hiss(dur,vol,fc){
   src.connect(f);f.connect(g);g.connect(master);src.start(t);src.stop(t+dur);
 }
 const sfx={
-  jump(){hiss(.22,.07,2800);tone(240,.14,'triangle',.04,null,420);playBuf(buf.steps,.32,1.4);},
+  jump(){hiss(.12,.04,2800);playBuf(buf.jumpW,.34,1.05+Math.random()*.15);playBuf(buf.steps,.26,1.4);},
   land(){tone(95,.1,'square',.045,null,60);hiss(.08,.045,900);playBuf(buf.steps,.5,.72);},
-  cog(){tone(1040,.06,'square',.045);tone(1560,.16,'sine',.07,AC&&AC.currentTime+.05);},
+  cog(){
+    const now=AC?AC.currentTime:0;
+    cogStreak=(now-lastCogT<2)?Math.min(cogStreak+1,6):0;lastCogT=now;
+    if(!playBuf(buf.cogN,.5,1+cogStreak*.055)){tone(1040,.06,'square',.045);tone(1560,.16,'sine',.07,AC&&AC.currentTime+.05);}
+  },
   card(){tone(620,.3,'sine',.08,null,930,true);tone(930,.4,'sine',.05,AC&&AC.currentTime+.13,1240,true);},
   right(){[440,554,659,880].forEach((f,i)=>tone(f,.3,'triangle',.08,AC&&AC.currentTime+i*.09,null,true));},
   wrong(){tone(140,.3,'sawtooth',.05,null,100);},
@@ -455,7 +460,7 @@ function musicTick(){
 }
 /* ============================== sampled audio ============================== */
 const ABASE=PBASE.replace('plates/','audio/');
-const buf={steps:[],bhits:[],lhits:[],ahits:[],whits:[],riser:[],uiC:[],uiD:[],uiG:[],whoosh:[]};
+const buf={steps:[],bhits:[],lhits:[],ahits:[],whits:[],riser:[],uiC:[],uiD:[],uiG:[],whoosh:[],cogN:[],jumpW:[],moth:[]};
 let samplesLoaded=false;
 function loadSamples(){
   if(!AC||samplesLoaded)return;samplesLoaded=true;
@@ -471,6 +476,9 @@ function loadSamples(){
   load(ABASE+'ui_confirm.mp3',buf.uiC,0);
   load(ABASE+'ui_data.mp3',buf.uiD,0);
   load(ABASE+'ui_glitch.mp3',buf.uiG,0);
+  for(let i=0;i<4;i++)load(ABASE+'cog_'+(i+1)+'.mp3',buf.cogN,i);
+  for(let i=0;i<2;i++)load(ABASE+'jump_'+(i+1)+'.mp3',buf.jumpW,i);
+  load(ABASE+'moth_1.mp3',buf.moth,0);
 }
 function playBuf(arr,vol,rate){
   if(!AC)return false;
@@ -741,6 +749,28 @@ bcog(7050,408);bcog(7180,408);bcog(7310,408);
 bcog(14800,408);bcog(14930,302);bcog(15060,408);bcog(15180,408);
 bcog(4200,408,2);bcog(4380,408,2);bcog(4560,408,2);bcog(4740,408,2);
 bcog(14850,408,2);bcog(15020,408,2);
+/* brass moths: five rare, skittish; each grants a permanent duel heart */
+const MOTHS=[
+ {x:2270,y:GY-40,lane:-1,zx1:1800,zx2:2360,skit:true,ph:0.7},
+ {x:4740,y:GY-46,lane:2,zx1:3960,zx2:5000,skit:true,ph:2.1},
+ {x:8110,y:268,lane:0,zx1:8085,zx2:8175,skit:false,ph:3.4},
+ {x:12450,y:300,lane:0,zx1:12405,zx2:12505,skit:false,ph:4.9},
+ {x:15060,y:GY-46,lane:2,zx1:14770,zx2:15150,skit:true,ph:5.8},
+];
+for(const mo of MOTHS){mo.fx=mo.x;mo.got=false;mo.dartT=0;}
+function drawMoth(mo){
+  const bob=Math.sin(T*2.2+mo.ph)*6,fl=Math.sin(T*17+mo.ph)*.7+.9;
+  const mx2=mo.fx,my2=mo.y+bob;
+  ctx.fillStyle='rgba(232,192,106,.16)';
+  ctx.beginPath();ctx.arc(mx2,my2,15,0,7);ctx.fill();
+  ctx.fillStyle='#e8c06a';
+  ctx.beginPath();
+  ctx.ellipse(mx2-4*fl,my2,4.6*fl,3,-.5,0,7);
+  ctx.ellipse(mx2+4*fl,my2,4.6*fl,3,.5,0,7);
+  ctx.fill();
+  ctx.fillStyle='#8a6a33';
+  ctx.beginPath();ctx.ellipse(mx2,my2+.5,1.6,3.4,0,0,7);ctx.fill();
+}
 /* pit treasure (lane -1) */
 [[1850,1990,2130,2270],[10400,10540,10680,10820],[13760,13930,14100,14270]].flat()
  .forEach(x=>cogs.push({x,y:GY-46,got:false,ph:rnd()*6.28,lane:-1}));
@@ -1220,7 +1250,7 @@ function groundUnder(list,x,y){
 let respawn={x:120,y:GY};
 let cam={x:0,y:120};
 let state='title';   // title | play | modal | duel | cine | end
-let cogsGot=0,cardsGot=0;
+let cogsGot=0,cardsGot=0,mothsGot=0;
 let curLevel=-1;
 let particles=[];
 let T=0,shakeT=0,flashT=0,hurtT=0,lastShutterHint=-9;
@@ -1234,7 +1264,9 @@ const $=id=>document.getElementById(id);
 const lvlsEl=$('lvls');
 ['I','II','III','IV','V'].forEach(n=>{const d=document.createElement('span');d.className='lvl';d.textContent=n;lvlsEl.appendChild(d);});
 function updHUD(){
-  $('cogs').innerHTML='&#9881; '+cogsGot;
+  $('cogs').innerHTML='&#9881; '+cogsGot+(mothsGot>0?' &nbsp;<span style="color:#e8c06a">&#129419;'.replace('&#129419;','\u2739')+' '+mothsGot+'</span>':'');
+  $('cogs').style.borderColor=cogsGot>=25?'#c9973f':'#2b3644';
+  $('cogs').title=cogsGot>=25?'25 cogs will absorb one wrong answer in a duel':'';
   $('cards').textContent='▮ '+cardsGot+'/3';
   $('cards').style.display=(levelOf(P.x)===1&&cardsGot<3)?'block':'none';
   [...lvlsEl.children].forEach((d,i)=>d.classList.toggle('on',bossState[i].dead));
@@ -1726,11 +1758,13 @@ function startBossIntro(bs){
 }
 function startDuel(bs){
   bs.state='duel';state='duel';
+  const pmax=Math.min(6,3+mothsGot);
+  if(bs.php===3&&pmax>3)bs.php=pmax;
   const B=BOSSES[bs.i];
   $('dname').innerHTML=B.name+'<small>'+B.title+'</small>';
   typeSay(B.say);
   pips($('bpips'),bs.hp,'b',3);
-  pips($('ppips'),bs.php,'p',3);
+  pips($('ppips'),bs.php,'p',pmax);
   duelEl.classList.add('on');
   duelQuestion(bs);
 }
@@ -1765,10 +1799,18 @@ function duelAnswer(bs,o,b){
     else setTimeout(()=>duelQuestion(bs),1100);
   }else{
     b.classList.add('wrong');b.disabled=true;
+    if(cogsGot>=25){ /* the cogs take the blow: 25 spent, heart saved */
+      cogsGot-=25;updHUD();
+      for(let i2=0;i2<14;i2++)spawnSpark(P.x,P.y-30,'#e8c06a');
+      playBuf(buf.cogN,.6,.8);sfx.wrong();
+      bs.lungeT=.7;if(!REDUCED)bossFlicker=.17;
+      $('dhint').textContent='⚙ the cogs shatter and take the blow — 25 spent';
+      return;
+    }
     bs.php--;bs.lungeT=.7;if(!REDUCED)bossFlicker=.17;hurtT=REDUCED?.2:.8;shakeT=REDUCED?0:.55;
     sfx.hurt();sfx.wrong();
     playBuf(buf.whits,.75);
-    pips($('ppips'),bs.php,'p',3);
+    pips($('ppips'),bs.php,'p',Math.min(6,3+mothsGot));
     $('dhint').textContent='✦ '+(o.hint||'It strikes! Not that one, keeper.');
     if(bs.php<=0)setTimeout(()=>duelLost(bs),900);
   }
@@ -1781,7 +1823,7 @@ function duelLost(bs){
   duelEl.classList.remove('on');letterbox(false);
   canvas.classList.remove('tilt');
   duck=1;
-  bs.state='wait';bs.hp=3;bs.php=3;bs.phase=0;
+  bs.state='wait';bs.hp=3;bs.php=Math.min(6,3+mothsGot);bs.phase=0;
   activeBoss=null;state='play';
   P.x=ARENA[bs.i].trig-260;P.y=GY;P.vx=0;P.vy=0;
   toast('↺ restored from last commit','the warden resets — walk in when you are ready');
@@ -1830,7 +1872,7 @@ function die(){
 }
 function finishGame(){
   state='end';
-  $('endstat').textContent='⚙ '+cogsGot+' cogs gathered · 5 wardens passed · the Engine turns again';
+  $('endstat').textContent='⚙ '+cogsGot+' cogs · \u2739 '+mothsGot+'/5 brass moths · 5 wardens passed · the Engine turns again';
   $('ending').classList.add('show');
 }
 
@@ -2052,9 +2094,26 @@ function update(dt){
   if(P.y>780)die();
 
   for(const c of cogs){
-    if(!c.got&&c.lane===P.lane&&Math.abs(P.x-c.x)<26&&Math.abs(P.y-17-c.y)<32){
+    if(!c.got&&c.lane===P.lane&&Math.abs(P.x-c.x)<26&&Math.abs(P.y-17-c.y)<42){
       c.got=true;cogsGot++;updHUD();sfx.cog();
       for(let i=0;i<7;i++)spawnSpark(c.x,c.y,'#e8c06a');}}
+  for(const mo of MOTHS){
+    if(mo.got)continue;
+    if(mo.dartT>0)mo.dartT-=dt;
+    const sameLane=P.lane===mo.lane;
+    const near=sameLane&&Math.abs(P.x-mo.fx)<130;
+    if(mo.skit&&near&&Math.abs(P.vx)>80&&mo.dartT<=0){ /* startle: it flits away */
+      const dir=P.x<mo.fx?1:-1;
+      mo.fx=clamp(mo.fx+dir*(160+((mo.fx|0)%60)),mo.zx1,mo.zx2);
+      mo.dartT=.6;hiss(.18,.03,3200);
+    }
+    if(sameLane&&Math.abs(P.x-mo.fx)<34&&Math.abs(P.y-24-mo.y)<60&&Math.abs(P.vx)<80&&P.deathT<=0){
+      mo.got=true;mothsGot++;updHUD();
+      playBuf(buf.moth,.75);sfx.card();
+      for(let i=0;i<14;i++)spawnMoth(mo.fx+(rnd()-.5)*30,mo.y+(rnd()-.5)*20);
+      toast('\u2739 a brass moth settles on your lamp ('+mothsGot+'/5)','+1 duel heart, permanent \u00b7 approach the shy ones slowly');
+    }
+  }
   for(const cd of cardsArr){
     if(!cd.got&&P.lane===0&&Math.abs(P.x-cd.x)<28&&Math.abs(P.y-17-cd.y)<34){
       cd.got=true;cardsGot++;updHUD();sfx.card();
@@ -2674,6 +2733,7 @@ function collectLights(){
   /* scrap-mites carry a faint red glow: an enemy the player cannot see is unfair, not scary */
   for(const bug of bugs)if(vis(bug.x,80))L.push({x:bug.x,y:bug.y-14,r:46*bug.sc2,c:'255,90,80',a:(bug.mode==='sleeper'&&bug.awake<=0)?.12:.32,flick:.25});
   for(const sg of signs)if(vis(sg.x,80))L.push({x:sg.x,y:GY-46,r:70,c:'255,216,150',a:.22,flick:.04});
+  for(const mo of MOTHS)if(!mo.got&&mo.lane===0&&vis(mo.fx,60))L.push({x:mo.fx,y:mo.y,r:44,c:'232,192,106',a:.3,flick:.1});
   for(const bx of SET.bulbs)if(vis(bx,340)){
     L.push({x:bx,y:250,r:200,c:'255,222,160',a:.8,flick:.07});
     L.push({x:bx,y:GY-14,r:130,c:'255,216,150',a:.45,flick:.07});
@@ -3109,6 +3169,11 @@ if(!plateOn){
         ctx.beginPath();ctx.arc(c.x,c.y+bob,14,0,7);ctx.fill();
         drawGearIcon(c.x,c.y+bob,6.2,T*1.8+c.ph,'#d8b060',true);
       }
+      for(const mo of MOTHS){
+        if(mo.got||mo.lane!==l)continue;
+        if(mo.fx<z.x1-20||mo.fx>z.x2+20)continue;
+        drawMoth(mo);
+      }
       ctx.restore();
       /* haze veil in front of this plane */
       ctx.fillStyle=m.fog.replace('rgb','rgba').replace(')',`,${l===z.maxLane&&z.maxLane>1?.12:.14})`);
@@ -3357,6 +3422,11 @@ if(!plateOn){
     ctx.beginPath();ctx.arc(c.x-2,c.y+bob-3,1.6,0,7);ctx.fill();
   }
 
+  for(const mo of MOTHS){
+    if(mo.got||mo.lane!==0)continue;
+    if(mo.fx<cam.x-40||mo.fx>cam.x+viewW+40)continue;
+    drawMoth(mo);
+  }
   /* string-puppet crawlers */
   for(const bug of bugs){
     if(bug.x<cam.x-60||bug.x>cam.x+viewW+60)continue;
@@ -3399,6 +3469,10 @@ if(!plateOn){
       ctx.fillStyle='rgba(232,192,106,.14)';
       ctx.beginPath();ctx.arc(c.x,c.y+bob,14,0,7);ctx.fill();
       drawGearIcon(c.x,c.y+bob,6.2,T*1.8+c.ph,'#e8c06a',true);
+    }
+    for(const mo of MOTHS){
+      if(mo.got||mo.lane!==-1||mo.fx<z.x1||mo.fx>z.x2)continue;
+      drawMoth(mo);
     }
     ctx.restore();
   }
