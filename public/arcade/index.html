@@ -11,7 +11,12 @@
   #root{position:fixed;inset:0;font-family:var(--sans);color:var(--paper)}
   canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
   #game{transition:transform 1.6s cubic-bezier(.4,0,.2,1);will-change:transform}
-  #game.tilt{transform:rotate(1.7deg) scale(1.08) translateY(-1%)}
+  #game.tilt{animation:bossDrift 7s ease-in-out infinite alternate}
+  @keyframes bossDrift{
+    0%{transform:rotate(3.2deg) scale(1.16) translate(-.7%,-2.4%)}
+    100%{transform:rotate(4.8deg) scale(1.19) translate(.7%,-1.4%)}
+  }
+  @media (prefers-reduced-motion: reduce){#game.tilt{animation:none;transform:rotate(2deg) scale(1.1)}}
   .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     background:rgba(6,10,16,.78);backdrop-filter:blur(7px);z-index:30;
     opacity:0;pointer-events:none;transition:opacity .5s ease}
@@ -249,7 +254,9 @@ function resize(){
 addEventListener('resize',resize); resize();
 /* painted wall plates (generated from the LN refs); vector wall stays as fallback until loaded */
 const PBASE=/\/arcade\//.test(location.pathname)?'plates/':'arcade/plates/';
-const plateImgs=[1,2,3,4,5].map(n=>{const i=new Image();i.decoding='async';i.src=PBASE+'wall_l'+n+'.webp';return i;});
+const plateImgs=['wall_l1','wall_l2b','wall_l3b','wall_l4b','wall_l5'].map(n=>{const i=new Image();i.decoding='async';i.src=PBASE+n+'.webp';return i;});
+const crawlImg=new Image();crawlImg.decoding='async';crawlImg.src=PBASE+'wall_crawl.webp';
+const pitImg=new Image();pitImg.decoding='async';pitImg.src=PBASE+'wall_pit.webp';
 {
   const t=document.getElementById('title');
   t.style.background='linear-gradient(rgba(4,9,11,.6),rgba(3,7,9,.88)),url('+PBASE+'title_art.webp) center/cover no-repeat';
@@ -495,9 +502,9 @@ if(TOUCHY){
 const LB=[0,3400,6800,10200,13600,LW];   // level boundaries
 const LNAMES=[
   ['LEVEL I','The Cold Boot Yards'],
-  ['LEVEL II','The Archive of Whirring Scrolls'],
-  ['LEVEL III','The Planning Halls'],
-  ['LEVEL IV','The Commit Foundry'],
+  ['LEVEL II','The Night Fair of Scrolls'],
+  ['LEVEL III','The Blueprint Woods'],
+  ['LEVEL IV','The Foundry River'],
   ['LEVEL V','The Summit Boiler'],
 ];
 /* LN3 grade from measured reference pixels: high-chroma teal shadows (S~65%) on a lifted
@@ -505,12 +512,12 @@ const LNAMES=[
 const PAL=[
  {skyT:'#061114',skyB:'#10262a',sil:'#04100f',sil2:'#0a1c19',soil:'#0b1613',plate:'#16221c',
   edge:'#465045',lamp:'#f6ecc2',fog:'#0d2024',darkA:.74,mist:'#16332f'},
- {skyT:'#060a07',skyB:'#14231a',sil:'#04100c',sil2:'#0b1811',soil:'#0e1510',plate:'#18241a',
-  edge:'#565137',lamp:'#f7eec6',fog:'#14231a',darkA:.76,mist:'#223026'},
- {skyT:'#061118',skyB:'#152934',sil:'#050e14',sil2:'#0b1620',soil:'#0c1520',plate:'#13202c',
-  edge:'#3c4c58',lamp:'#c8dfe4',fog:'#0f1c27',darkA:.68,mist:'#17303c'},
- {skyT:'#080706',skyB:'#1c1512',sil:'#060404',sil2:'#100c09',soil:'#120d0a',plate:'#1d1512',
-  edge:'#6f5a44',lamp:'#f0d9a8',fog:'#1b1410',darkA:.62,mist:'#2a2016'},
+ {skyT:'#050b10',skyB:'#12262e',sil:'#040d10',sil2:'#0b1b20',soil:'#0d1418',plate:'#16232a',
+  edge:'#4a5340',lamp:'#f7eec6',fog:'#122630',darkA:.72,mist:'#1c3440'},
+ {skyT:'#040a0c',skyB:'#0e2426',sil:'#030a09',sil2:'#0a1a18',soil:'#0c1410',plate:'#141f18',
+  edge:'#3d4c3a',lamp:'#e8e4c0',fog:'#0e2426',darkA:.74,mist:'#173430'},
+ {skyT:'#04080c',skyB:'#0e1e26',sil:'#030a0d',sil2:'#0a161c',soil:'#0b1216',plate:'#141e24',
+  edge:'#42503e',lamp:'#f0dca8',fog:'#0e1e26',darkA:.7,mist:'#16303a'},
  {skyT:'#030607',skyB:'#0d2124',sil:'#030808',sil2:'#091211',soil:'#0a1414',plate:'#121c1c',
   edge:'#35443f',lamp:'#f2e0c2',fog:'#0d2124',darkA:.8,mist:'#142826'},
 ];
@@ -640,7 +647,19 @@ const backPlats=[
  {x:14720,y:GY,w:480,h:240,ground:true,lane:2},
 ];
 const BPL=[null,backPlats.filter(p=>p.lane===1),backPlats.filter(p=>p.lane===2)];
-function laneK(t){return t<=1?lerp(1,.8,t):lerp(.8,.655,t-1);}
+/* under-floor pits: a whole scene below — enter by pressing Down on a grate */
+const underZones=[
+ {x1:1740,x2:2400},
+ {x1:10280,x2:10960},
+ {x1:13640,x2:14380},
+];
+const UPL=underZones.map(z=>({x:z.x1,y:GY,w:z.x2-z.x1,h:240,ground:true}));
+function underAtX(x){return underZones.find(z=>x>=z.x1&&x<=z.x2)||null;}
+const grates=[];
+underZones.forEach((z,i)=>{grates.push({x:z.x1+40,z:i},{x:z.x2-40,z:i});});
+function grateNear(x){for(const g of grates)if(Math.abs(x-g.x)<36)return g;return null;}
+let seenGrateHint=false,seenDoorHint=false;
+function laneK(t){return t<0?lerp(1,1.24,-t):(t<=1?lerp(1,.8,t):lerp(.8,.655,t-1));}
 /* lane-hunters: clockwork stalkers that hop planes toward you */
 const hunters=[
  {x1:6960,x2:7380,x:7100,dir:1,spd:70,lane0:1,lane:1,laneT:1,cd:2.5,tel:0,maxLane:1,zx1:6900,zx2:7460},
@@ -667,6 +686,9 @@ bcog(7050,408);bcog(7180,408);bcog(7310,408);
 bcog(14800,408);bcog(14930,302);bcog(15060,408);bcog(15180,408);
 bcog(4200,408,2);bcog(4380,408,2);bcog(4560,408,2);bcog(4740,408,2);
 bcog(14850,408,2);bcog(15020,408,2);
+/* pit treasure (lane -1) */
+[[1850,1990,2130,2270],[10400,10540,10680,10820],[13760,13930,14100,14270]].flat()
+ .forEach(x=>cogs.push({x,y:GY-46,got:false,ph:rnd()*6.28,lane:-1}));
 /* lamps: the lighting system. hung=caged ceiling lamp, post=commit lamppost handled via flags */
 const lamps=[];
 function lamp(x,y,r,warm){lamps.push({x,y,r:r||245,warm:warm==null?1:warm});}
@@ -1266,6 +1288,61 @@ function pips(el,n,cls,max){
     el.appendChild(p);
   }
 }
+
+/* post-boss travel cinematic: 4.6s pan across the next biome's plate + caption */
+const TRAVEL=[
+ null,
+ ['The gate groans open.','Cluu steps out of the works for the first time — into the rain of the Night Fair.'],
+ ['Past the last stall, the lantern-line leads on','into the Blueprint Woods, where the plans grow on trees.'],
+ ['The woods end at black water.','Down the Foundry River, the current carries the sound of hammers.'],
+ ['At the river\'s end the works rise again.','The Summit Boiler. Something enormous is waiting.'],
+];
+let travel={on:false,t:0,li:0};
+function startTravel(li){travel.on=true;travel.t=0;travel.li=li;state='cine';letterbox(true);sfx.reveal();}
+function updateTravel(dt){
+  travel.t+=dt;
+  if(travel.t>=4.6){
+    travel.on=false;letterbox(false);state='play';
+    chapterCard(LNAMES[travel.li][0],LNAMES[travel.li][1],2800);
+  }
+}
+function drawTravel(){
+  const t=travel.t,W=innerWidth,H=innerHeight;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle='#020506';ctx.fillRect(0,0,W,H);
+  const a=t<.7?t/.7:(t>3.8?clamp((4.6-t)/.8,0,1):1);
+  const img=plateImgs[travel.li];
+  if(img&&img.complete&&img.naturalWidth){
+    const iw=img.naturalWidth,ih=img.naturalHeight;
+    const sc=Math.max(W/iw,H/ih)*1.09;
+    const px=(t/4.6-.5)*W*.07;
+    ctx.globalAlpha=a*.94;
+    ctx.drawImage(img,(W-iw*sc)/2+px,(H-ih*sc)/2+H*.01*Math.sin(t*.8),iw*sc,ih*sc);
+    ctx.globalAlpha=1;
+  }
+  const vg=ctx.createRadialGradient(W/2,H/2,H*.28,W/2,H/2,H*.85);
+  vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(1,4,5,.8)');
+  ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
+  const cap=TRAVEL[travel.li];
+  if(cap){
+    ctx.globalAlpha=a;
+    ctx.textAlign='center';
+    ctx.fillStyle='rgba(230,224,206,.9)';
+    ctx.font='500 '+Math.round(H*.028)+'px Iowan Old Style,Palatino,Georgia,serif';
+    ctx.fillText(cap[0],W/2,H*.8);
+    ctx.fillStyle='rgba(200,196,180,.75)';
+    ctx.font='400 '+Math.round(H*.023)+'px Iowan Old Style,Palatino,Georgia,serif';
+    ctx.fillText(cap[1],W/2,H*.845);
+    ctx.textAlign='left';ctx.globalAlpha=1;
+  }
+  if(!REDUCED){
+    ctx.globalAlpha=.4;
+    ctx.save();ctx.translate(-((T*731)%160),-((T*547)%160));
+    ctx.fillStyle=ctx.createPattern(grain,'repeat');
+    ctx.fillRect(0,0,W+160,H+160);ctx.restore();
+    ctx.globalAlpha=1;
+  }
+}
 function startBossIntro(bs){
   activeBoss=bs;state='cine';
   canvas.classList.add('tilt');
@@ -1347,6 +1424,7 @@ function bossDefeated(bs){
     sfx.commit();
     state='play';activeBoss=null;
     if(bs.i===4)setTimeout(finishGame,3200);
+    else setTimeout(()=>{if(state==='play')startTravel(bs.i+1);},1600);
   },2600);
 }
 
@@ -1401,6 +1479,7 @@ function update(dt){
     if(bs.state==='dying'){bs.t+=dt;
       if(rnd()<.8)spawnMoth(bs.x+(rnd()-.5)*160,280+(rnd()-.5)*120);}
   }
+  if(state==='cine'&&travel.on){updateTravel(dt);updateParticles(dt);return;}
   if(state==='cine'&&introSeq.on){updateIntro(dt);updateParticles(dt);return;}
   if(state==='cine'&&activeBoss){  // camera drifts to arena during intro
     const a=ARENA[activeBoss.i];
@@ -1433,9 +1512,18 @@ function update(dt){
      Inside a depth-zone doorway the step enters the back rooms (old lane system);
      everywhere else it shifts the shallow 3-lane strip on the main floor. */
   const onFloorPiece=P.onGround&&P.groundRef&&P.groundRef.ground;
+  const gn=grateNear(P.x);
+  if(gn&&P.lane===0&&!seenGrateHint){seenGrateHint=true;
+    toast('a floor grate, loose at one edge','↓ drops into the dark beneath the boards');}
   if(lanePressed){
     lanePressed=false;
-    if(P.onGround&&P.deathT<=0&&dz&&P.zl===0&&P.lane<dz.maxLane&&groundUnder(BPL[P.lane+1],P.x,P.y)){
+    if(P.lane<0&&P.deathT<=0&&gn){ /* climb out of the pit */
+      P.lane=0;P.uz=null;sfx.jump();
+      for(let i=0;i<6;i++)spawnSteam(P.x+(rnd()-.5)*20,P.y);
+    }else if(P.onGround&&P.deathT<=0&&dz&&P.zl===0&&P.lane===0&&dz.maxLane>0&&groundUnder(BPL[1],P.x,P.y)){
+      P.lane=1;sfx.jump();
+      for(let i=0;i<6;i++)spawnSteam(P.x+(rnd()-.5)*20,P.y);
+    }else if(P.onGround&&P.deathT<=0&&dz&&P.lane>0&&P.lane<dz.maxLane&&groundUnder(BPL[P.lane+1],P.x,P.y)){
       P.lane++;sfx.jump();
       for(let i=0;i<6;i++)spawnSteam(P.x+(rnd()-.5)*20,P.y);
     }else if(onFloorPiece&&P.deathT<=0&&P.lane===0&&P.zl>-1){
@@ -1450,13 +1538,17 @@ function update(dt){
         P.lane--;sfx.jump();jumpPressed=false;P.buffer=0;
         for(let i=0;i<6;i++)spawnSteam(P.x+(rnd()-.5)*20,P.y);
       }else{sfx.wrong();toast('no footing ahead here','walk on — step forward where the floor is solid');}
+    }else if(P.lane===0&&P.deathT<=0&&onFloorPiece&&gn){ /* drop into the pit */
+      P.lane=-1;P.uz=underZones[gn.z];sfx.land();
+      for(let i=0;i<8;i++)spawnDust(P.x+(rnd()-.5)*22,P.y,'rgba(120,110,90,.5)');
     }else if(onFloorPiece&&P.deathT<=0&&P.lane===0&&P.zl<1){
       P.zl++;hiss(.14,.04,1200);
     }
   }
-  /* strip lane eases; airborne or on a hanging platform pulls you back to the walk line */
-  if(!onFloorPiece||P.lane>0)P.zl=0;
+  /* strip lane eases; leaving the walk line resets it */
+  if(!onFloorPiece||P.lane!==0)P.zl=0;
   P.zlT+=(P.zl-P.zlT)*(1-Math.exp(-8*dt));
+  if(P.lane<0&&P.uz)P.x=clamp(P.x,P.uz.x1+14,P.uz.x2-14);
   /* lane-hunters stalk across the planes */
   for(const h of hunters){
     h.x+=h.spd*h.dir*dt;
@@ -1503,7 +1595,7 @@ function update(dt){
   if(!keys.jump&&P.vy<-260)P.vy=-260;
   P.vy=Math.min(P.vy+2100*dt,1050);
 
-  const solids=P.lane>0?BPL[P.lane]:solidPlats();
+  const solids=P.lane>0?BPL[P.lane]:(P.lane<0?UPL:solidPlats());
   P.x+=P.vx*dt;
   if(P.lane===1&&dz)P.x=clamp(P.x,dz.x1+14,dz.x2-14);
   let b=pbox();
@@ -2227,6 +2319,7 @@ function drawGroundPersp(p,m){
   }
 }
 function render(){
+  if(travel.on){drawTravel();return;}
   if(introSeq.on&&introSeq.shot<3){
     drawIntro(moodAt(120));
     ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -2519,9 +2612,17 @@ if(!plateOn){
     for(let l=z.maxLane;l>=1;l--){
       const kL=laneK(l);
       ctx.save();laneTransform(kL);
-      if(l===z.maxLane){ /* back wall + door posts on the deepest plane */
-        ctx.fillStyle='rgba(255,255,255,.025)';
-        ctx.fillRect(z.x1-30,120,z.x2-z.x1+60,GY-100);
+      if(l===z.maxLane){ /* back wall: the crawl-space behind the works */
+        if(crawlImg.complete&&crawlImg.naturalWidth){
+          ctx.globalAlpha=.9;
+          ctx.drawImage(crawlImg,z.x1-30,120,z.x2-z.x1+60,GY-120);
+          ctx.globalAlpha=1;
+          ctx.fillStyle='rgba(3,8,8,.35)';
+          ctx.fillRect(z.x1-30,120,z.x2-z.x1+60,GY-120);
+        }else{
+          ctx.fillStyle='rgba(255,255,255,.025)';
+          ctx.fillRect(z.x1-30,120,z.x2-z.x1+60,GY-100);
+        }
         ctx.fillStyle=mixRGB(m.sil2,'rgb(255,255,255)',.04);
         ctx.fillRect(z.x1-26,150,18,GY-130);
         ctx.fillRect(z.x2+8,150,18,GY-130);
@@ -2562,13 +2663,21 @@ if(!plateOn){
       ctx.fillStyle=m.fog.replace('rgb','rgba').replace(')',`,${l===z.maxLane&&z.maxLane>1?.12:.14})`);
       ctx.fillRect(z.x1-30,120,z.x2-z.x1+60,GY-80);
     }
-    /* front floor plaque marking the passage */
+    /* a real opening in the wall: Up walks through into the crawl-space */
     const px2=z.x1+46;
-    ctx.fillStyle=mixRGB(m.edge,'rgb(0,0,0)',.2);
-    roundRect(px2-16,GY-6,32,8,3);ctx.fill();
-    ctx.fillStyle='rgba(123,224,173,'+(.5+.3*Math.sin(T*2.4))+')';
-    ctx.font='bold 12px ui-monospace,monospace';ctx.textAlign='center';
-    ctx.fillText('⇵',px2,GY-10);ctx.textAlign='left';
+    ctx.fillStyle='#040a09';roundRect(px2-34,GY-122,68,122,6);ctx.fill();
+    if(crawlImg.complete&&crawlImg.naturalWidth){
+      ctx.save();ctx.beginPath();roundRect(px2-30,GY-118,60,116,5);ctx.clip();
+      ctx.globalAlpha=.85;ctx.drawImage(crawlImg,px2-90,GY-152,220,152);ctx.globalAlpha=1;
+      ctx.fillStyle='rgba(3,8,7,.45)';ctx.fillRect(px2-30,GY-118,60,116);
+      ctx.restore();
+    }
+    ctx.strokeStyle='rgba(123,224,173,'+(.25+.15*Math.sin(T*2.4))+')';
+    ctx.lineWidth=1.5;roundRect(px2-34,GY-122,68,122,6);ctx.stroke();
+    if(Math.abs(P.x-px2)<70&&P.lane===0&&state==='play'){
+      ctx.fillStyle='rgba(123,224,173,.8)';ctx.font='bold 13px ui-monospace,monospace';
+      ctx.textAlign='center';ctx.fillText('↑',px2,GY-130+Math.sin(T*3)*3);ctx.textAlign='left';
+    }
   }
   /* hunters in the depth planes (front-lane hunters draw with the mites) */
   for(const h of hunters)if(h.laneT>.5)drawHunter(h);
@@ -2796,9 +2905,9 @@ if(!plateOn){
       if((hy*hxp+cd.x)%3!==0)ctx.fillRect(hxp,hy,3,2.4);
     ctx.restore();
   }
-  /* cog coins */
+  /* cog coins (walk-line plane only; back/pit cogs draw in their own scenes) */
   for(const c of cogs){
-    if(c.got)continue;
+    if(c.got||c.lane)continue;
     if(c.x<cam.x-30||c.x>cam.x+viewW+30)continue;
     const bob=Math.sin(T*2.6+c.ph)*4;
     ctx.fillStyle='rgba(232,192,106,.14)';
@@ -2814,6 +2923,45 @@ if(!plateOn){
     drawMite(bug,m);
   }
 
+  /* under-floor pits: grates always visible; interior + veil when Cluu is below */
+  for(const g of grates){
+    if(g.x<cam.x-80||g.x>cam.x+viewW+80)continue;
+    ctx.fillStyle='#0a0f0d';roundRect(g.x-30,GY+6,60,15,4);ctx.fill();
+    ctx.fillStyle='rgba(255,205,125,.07)';roundRect(g.x-26,GY+8,52,11,3);ctx.fill();
+    ctx.fillStyle='#050807';
+    for(let s2=-22;s2<=22;s2+=8)ctx.fillRect(g.x+s2,GY+8,3.4,11);
+    if(Math.abs(P.x-g.x)<60&&P.lane===0&&state==='play'){
+      ctx.fillStyle='rgba(123,224,173,.8)';ctx.font='bold 13px ui-monospace,monospace';
+      ctx.textAlign='center';ctx.fillText('↓',g.x,GY+40+Math.sin(T*3)*3);ctx.textAlign='left';
+    }
+  }
+  if(P.lane<0&&P.uz){
+    const z=P.uz;
+    ctx.fillStyle='rgba(2,5,6,.6)';
+    ctx.fillRect(cam.x-10,cam.y-10,viewW+20,VH+20);
+    ctx.save();laneTransform(laneK(P.laneT));
+    const x1=z.x1-24,x2=z.x2+24,top=GY-186;
+    ctx.fillStyle='#030807';ctx.fillRect(x1,top,x2-x1,300);
+    if(pitImg.complete&&pitImg.naturalWidth){
+      ctx.globalAlpha=.95;ctx.drawImage(pitImg,x1,top,x2-x1,244);ctx.globalAlpha=1;
+    }
+    /* joists: the underside of the boards you were just standing on */
+    ctx.fillStyle='#0a1210';ctx.fillRect(x1,top,x2-x1,24);
+    ctx.fillStyle='rgba(0,0,0,.55)';
+    for(let jx=x1+18;jx<x2;jx+=54)ctx.fillRect(jx,top,9,24);
+    ctx.fillStyle='#0b1310';ctx.fillRect(x1,GY,x2-x1,80);
+    ctx.fillStyle='rgba(0,0,0,.45)';
+    for(let sx2=Math.ceil(x1/56)*56;sx2<x2;sx2+=56)ctx.fillRect(sx2,GY,2,14);
+    ctx.fillStyle=mixRGB(m.edge,'rgb(0,0,0)',.4);ctx.fillRect(x1,GY-2,x2-x1,2.4);
+    for(const c of cogs){
+      if(c.lane!==-1||c.got||c.x<z.x1||c.x>z.x2)continue;
+      const bob=Math.sin(T*2.6+c.ph)*4;
+      ctx.fillStyle='rgba(232,192,106,.14)';
+      ctx.beginPath();ctx.arc(c.x,c.y+bob,14,0,7);ctx.fill();
+      drawGearIcon(c.x,c.y+bob,6.2,T*1.8+c.ph,'#e8c06a',true);
+    }
+    ctx.restore();
+  }
   /* front-lane hunters */
   for(const h of hunters)if(h.laneT<=.5)drawHunter(h);
   /* bosses */
@@ -3374,6 +3522,7 @@ window.__cluu={warp(x){P.x=x;P.y=GY-2;P.vx=0;P.vy=0;respawn={x,y:GY};cam.x=clamp
     return {og:P.onGround,py:P.y,dz:!!z,ml:z?z.maxLane:-1,
       gu:z?groundUnder(BPL[P.lane+1]||[],P.x,P.y):false,lane:P.lane};},
   cards(){cardsGot=3;updHUD();},
+  travel(i){startTravel(i);},
   clear(i){bossState[i].dead=true;bossState[i].state='dead';gates[i].openT=1;
     lessonGates[i].openT=1;lessonDone[i]=true;updHUD();}};
 })();
