@@ -16,7 +16,7 @@
   .overlay.show{opacity:1;pointer-events:auto}
 
   /* letterbox + chapter cards */
-  .lb{position:absolute;left:0;right:0;height:11vh;background:#000;z-index:18;transition:transform 1.1s cubic-bezier(.7,0,.3,1)}
+  .lb{position:absolute;left:0;right:0;height:11vh;background:#020606;z-index:18;transition:transform 1.1s cubic-bezier(.7,0,.3,1)}
   #lbT{top:0;transform:translateY(-101%)} #lbB{bottom:0;transform:translateY(101%)}
   .lb.on#lbT,#lbT.on{transform:translateY(0)} #lbB.on{transform:translateY(0)}
   #chapter{position:absolute;left:0;right:0;top:16%;text-align:center;z-index:19;opacity:0;transition:opacity 1.2s}
@@ -100,7 +100,7 @@
   #cogs{top:16px;left:16px;color:var(--brassL)}
   #cards{top:16px;left:118px;color:var(--terra);display:none}
   #lvls{top:16px;right:60px;display:flex;gap:10px;align-items:center;font-family:var(--serif)}
-  .lvl{font-size:13px;color:#43506100;color:#435061;transition:all .4s;letter-spacing:.05em}
+  .lvl{font-size:13px;color:rgba(230,225,210,.35);transition:all .4s;letter-spacing:.05em}
   .lvl.on{color:var(--brassL);text-shadow:0 0 10px rgba(232,192,106,.6)}
   #mute{top:16px;right:16px;pointer-events:auto;cursor:pointer;color:var(--dim);user-select:none}
   #mute:hover{color:var(--paper)}
@@ -233,12 +233,16 @@ const TOUCHY  = matchMedia('(pointer: coarse)').matches;
 let dpr=1, s=1, viewW=960;
 const dark = document.createElement('canvas');   // low-res darkness buffer
 const dctx = dark.getContext('2d');
+const fgBlur = document.createElement('canvas'); // low-res foreground buffer (upscale = iOS-safe DOF)
+const fctx = fgBlur.getContext('2d');
 const grain = document.createElement('canvas');  // film grain tile
 function resize(){
   dpr=Math.min(window.devicePixelRatio||1,2);
   canvas.width=innerWidth*dpr; canvas.height=innerHeight*dpr;
   s=innerHeight/VH; viewW=innerWidth/s;
   dark.width=Math.ceil(innerWidth/4); dark.height=Math.ceil(innerHeight/4);
+  const fq=TOUCHY?4:3;
+  fgBlur.width=Math.ceil(innerWidth/fq); fgBlur.height=Math.ceil(innerHeight/fq);
 }
 addEventListener('resize',resize); resize();
 (function makeGrain(){
@@ -384,18 +388,19 @@ const LNAMES=[
   ['LEVEL IV','The Commit Foundry'],
   ['LEVEL V','The Summit Boiler'],
 ];
-/* one desaturated teal-green grade for everything (LN3 ref); warm amber lamps puncture it */
+/* LN3 grade from measured reference pixels: high-chroma teal shadows (S~65%) on a lifted
+   floor (luma ~15), cream lamp cores (amber lives in the glow ring, never the core) */
 const PAL=[
- {skyT:'#04090a',skyB:'#122119',sil:'#020605',sil2:'#081310',soil:'#0b1310',plate:'#152018',
-  edge:'#3a4438',lamp:'#ffc580',fog:'#0e1d18',darkA:.78,mist:'#16302a'},
- {skyT:'#050906',skyB:'#151d12',sil:'#030503',sil2:'#0a120a',soil:'#0d130c',plate:'#171f14',
-  edge:'#4a462e',lamp:'#ffd08c',fog:'#131b12',darkA:.8,mist:'#1e2a1c'},
- {skyT:'#03070c',skyB:'#0d1c24',sil:'#020509',sil2:'#081119',soil:'#0a1217',plate:'#111d24',
-  edge:'#31404c',lamp:'#c8dfe4',fog:'#0d1b22',darkA:.8,mist:'#17303c'},
- {skyT:'#070605',skyB:'#191311',sil:'#040302',sil2:'#0d0a08',soil:'#0f0c09',plate:'#1a1310',
-  edge:'#4e3a26',lamp:'#ff9e4e',fog:'#181210',darkA:.76,mist:'#241a12'},
- {skyT:'#020405',skyB:'#0b1314',sil:'#010303',sil2:'#070d0d',soil:'#080f0f',plate:'#101717',
-  edge:'#2c3a38',lamp:'#ffb896',fog:'#0b1314',darkA:.86,mist:'#12201f'},
+ {skyT:'#061114',skyB:'#10262a',sil:'#04100f',sil2:'#0a1c19',soil:'#0b1613',plate:'#16221c',
+  edge:'#465045',lamp:'#f6ecc2',fog:'#0d2024',darkA:.74,mist:'#16332f'},
+ {skyT:'#060a07',skyB:'#14231a',sil:'#04100c',sil2:'#0b1811',soil:'#0e1510',plate:'#18241a',
+  edge:'#565137',lamp:'#f7eec6',fog:'#14231a',darkA:.76,mist:'#223026'},
+ {skyT:'#061118',skyB:'#152934',sil:'#050e14',sil2:'#0b1620',soil:'#0c1520',plate:'#13202c',
+  edge:'#3c4c58',lamp:'#c8dfe4',fog:'#0f1c27',darkA:.68,mist:'#17303c'},
+ {skyT:'#080706',skyB:'#1c1512',sil:'#060404',sil2:'#100c09',soil:'#120d0a',plate:'#1d1512',
+  edge:'#6f5a44',lamp:'#f0d9a8',fog:'#1b1410',darkA:.62,mist:'#2a2016'},
+ {skyT:'#030607',skyB:'#0d2124',sil:'#030808',sil2:'#091211',soil:'#0a1414',plate:'#121c1c',
+  edge:'#35443f',lamp:'#f2e0c2',fog:'#0d2124',darkA:.8,mist:'#142826'},
 ];
 function levelOf(x){for(let i=LB.length-2;i>=0;i--)if(x>=LB[i])return i;return 0;}
 function moodAt(x){
@@ -560,6 +565,8 @@ function lamp(x,y,r,warm){lamps.push({x,y,r:r||245,warm:warm==null?1:warm});}
 [13800,14400,15000,15600,16100,16660].forEach(x=>lamp(x,268,210));
 /* moonlight shafts through high windows: cool safe pools (LN ref frame_0360) */
 const shafts=[{x:1180,w:120},{x:4180,w:100},{x:7350,w:110},{x:8850,w:130},{x:11400,w:100},{x:14380,w:110},{x:15750,w:120}];
+/* a lamp hanging over a gap must not pool on the floor */
+for(const lp of lamps)lp.onFloor=plats.some(p=>p.ground&&lp.x>=p.x&&lp.x<=p.x+p.w);
 /* ============================== lessons (terminal shrines) ============================== */
 const shrines=[{x:2380,li:0},{x:5750,li:1},{x:9060,li:2},{x:12620,li:3},{x:15950,li:4}];
 const LESSONS=[
@@ -1165,7 +1172,7 @@ function update(dt){
     setTimeout(()=>{if(state==='play')letterbox(false);},3000);
   }
   const tx=clamp(P.x-viewW*.42+P.vx*.16,0,LW-viewW);
-  const ty=clamp(P.y-322,-720,14);
+  const ty=clamp(P.y-322,-720,44); /* 44: feet at .77H with a floor apron below (ref median .76-.78H) */
   const k=1-Math.exp(-7*dt);
   cam.x+=(tx-cam.x)*k;cam.y+=(ty-cam.y)*k;
   updateParticles(dt);
@@ -1224,9 +1231,21 @@ for(let x=700;x<LW*1.35+1200;x+=860+rnd()*820){
   const t=rnd();
   fgOcc.push({lx:x,type:t<.3?'pipe':(t<.55?'crate':(t<.8?'fence':'gear')),s:.8+rnd()*.7,v:rnd()});
 }
+/* snap each occluder near a lamp (in pf 1.35 parallax space) so it silhouettes against a cone */
+for(const o of fgOcc){
+  let best=1e9,bx=o.lx;
+  for(const lp of lamps){const sxp=lp.x*1.35;if(Math.abs(sxp-o.lx)<best){best=Math.abs(sxp-o.lx);bx=sxp;}}
+  o.lx=bx+(rnd()<.5?-1:1)*(90+rnd()*140);
+}
 const vents=[600,1900,3800,5600,7050,9450,10500,12300,13900,15550];
 const tanks=[];    // midground pf 1 giant wall props: drawer-chests, mannequins, thread spools, prop crates
 [[500,.9],[1250,1.1],[2550,.8],[3600,1],[4750,.9],[6050,1.05],[7100,.85],[9500,1],[10700,1.1],[11800,.9],[12500,1],[14100,.95],[15200,1.05],[16050,.9]].forEach(([x,sc],i)=>tanks.push({x,sc,kind:['drawer','mann','spool','crate'][i%4]}));
+/* nearest-lamp direction/proximity per prop, static: precompute for volume shading */
+for(const t of tanks){
+  let best=1e9,dir=1;
+  for(const lp of lamps){const d=Math.abs(lp.x-t.x);if(d<best){best=d;dir=lp.x>t.x?1:-1;}}
+  t.ldir=dir;t.lnear=clamp(1-best/520,0,1);
+}
 
 /* ============================== drawing helpers ============================== */
 function roundRect(x,y,w,h,r){
@@ -1248,15 +1267,48 @@ function contactShadow(x,w,a){
   ctx.fillStyle=`rgba(0,0,0,${a||.3})`;
   ctx.beginPath();ctx.ellipse(x,GY+4,w,4.5,0,0,7);ctx.fill();
 }
-function gearPath(cx,cy,r,teeth,rot){
-  ctx.beginPath();
+function gearPath(cx,cy,r,teeth,rot,c){
+  c=c||ctx;
+  c.beginPath();
   const tw=Math.PI/teeth;
   for(let i=0;i<teeth;i++){
     const a=rot+i*2*Math.PI/teeth;
-    ctx.arc(cx,cy,r,a-tw*.55,a+tw*.001);
-    ctx.arc(cx,cy,r*1.18,a+tw*.12,a+tw*.88);
+    c.arc(cx,cy,r,a-tw*.55,a+tw*.001);
+    c.arc(cx,cy,r*1.18,a+tw*.12,a+tw*.88);
   }
-  ctx.closePath();
+  c.closePath();
+}
+/* foreground occluder shapes, context-agnostic so they can render into the DOF buffer */
+function drawFgOcc(c,fx0){
+  for(const o of fgOcc){
+    if(o.lx<fx0-260||o.lx>fx0+viewW*1.35+260)continue;
+    c.fillStyle='rgba(3,5,7,.85)';
+    if(o.type==='pipe'){
+      c.fillRect(o.lx,cam.y*1.12-40,24*o.s,720);
+      c.fillRect(o.lx-7,cam.y*1.12+140*o.s,38*o.s,16);
+    }else if(o.type==='crate'){
+      const cy2=GY+30;
+      c.fillRect(o.lx,cy2-90*o.s,86*o.s,120*o.s);
+      c.fillRect(o.lx+20*o.s,cy2-150*o.s,70*o.s,66*o.s);
+    }else if(o.type==='fence'){ /* diamond-mesh cage panel (frame_0057) */
+      const fy=cam.y*1.12-40,fh=760,fw=340*o.s;
+      c.strokeStyle='rgba(3,5,7,.75)';c.lineWidth=5;
+      for(let d2=-fw/2;d2<fw/2;d2+=36){
+        c.beginPath();c.moveTo(o.lx+d2,fy);c.lineTo(o.lx+d2+150,fy+fh);c.stroke();
+        c.beginPath();c.moveTo(o.lx+d2+150,fy);c.lineTo(o.lx+d2,fy+fh);c.stroke();
+      }
+    }else{
+      gearPath(o.lx,GY+150,150*o.s,12,T*.06,c);c.fill();
+    }
+  }
+}
+/* elliptical light pool on the floor plane (LN pool aspect ~3:1) */
+function floorPool(x,rx,rgb,a,fl){
+  ctx.save();ctx.translate(x,GY+6);ctx.scale(1,.26);
+  const g=ctx.createRadialGradient(0,0,0,0,0,rx*fl);
+  g.addColorStop(0,`rgba(${rgb},${a})`);g.addColorStop(1,`rgba(${rgb},0)`);
+  ctx.fillStyle=g;ctx.fillRect(-rx*fl,-rx*fl,rx*fl*2,rx*fl*2);
+  ctx.restore();
 }
 function drawGearIcon(x,y,r,rot,col,hole){
   ctx.fillStyle=col;
@@ -1270,16 +1322,24 @@ function drawGearIcon(x,y,r,rot,col,hole){
 function collectLights(){
   const L=[];
   const vis=(x,r)=>x>cam.x-r-60&&x<cam.x+viewW+r+60;
-  for(const lp of lamps)if(vis(lp.x,lp.r))L.push({x:lp.x,y:lp.y,r:lp.r,c:'255,190,92',a:.95,flick:.08});
+  for(const lp of lamps)if(vis(lp.x,lp.r)){
+    L.push({x:lp.x,y:lp.y,r:lp.r,c:'255,216,150',a:.95,flick:.08});
+    /* punch the darkness at floor level too, so the pool survives the dark pass */
+    if(lp.onFloor)L.push({x:lp.x,y:GY-12,r:lp.r*.55,c:'255,216,150',a:.55,flick:.08});
+  }
   for(const sf of shafts)if(vis(sf.x,320))L.push({x:sf.x,y:GY-40,r:235,c:'168,206,196',a:.5,flick:.03});
-  for(const f of flags)if(f.done&&vis(f.x,140))L.push({x:f.x,y:GY-62,r:135,c:'255,190,92',a:.8,flick:.12});
+  /* scrap-mites carry a faint red glow: an enemy the player cannot see is unfair, not scary */
+  for(const bug of bugs)if(vis(bug.x,80))L.push({x:bug.x,y:bug.y-14,r:46,c:'255,90,80',a:.32,flick:.25});
+  for(const sg of signs)if(vis(sg.x,80))L.push({x:sg.x,y:GY-46,r:70,c:'255,216,150',a:.22,flick:.04});
+  for(const f of flags)if(f.done&&vis(f.x,140))L.push({x:f.x,y:GY-62,r:135,c:'255,216,150',a:.8,flick:.12});
   for(const sh of shrines)if(vis(sh.x,110))L.push({x:sh.x,y:GY-56,r:105,c:'123,224,173',a:.7,flick:.05});
   // player headlamp (projected through the lane transform)
   {
+    /* headlamp thrown forward and down, not a symmetric aura */
     const k=laneK(P.laneT),hx2=cam.x+viewW/2,hy2=cam.y+330;
-    const lx=hx2+(P.x+P.dir*22-hx2)*k,ly=hy2+(P.y-30-hy2)*k;
-    L.push({x:lx,y:ly,r:185*k,c:'255,210,140',a:.9,flick:.06});
-    L.push({x:hx2+(P.x-hx2)*k,y:hy2+(P.y-24-hy2)*k,r:90*k,c:'255,210,140',a:.6,flick:0});
+    const lx=hx2+(P.x+P.dir*34-hx2)*k,ly=hy2+(P.y-10-hy2)*k;
+    L.push({x:lx,y:ly,r:185*k,c:'255,228,185',a:.9,flick:.06});
+    L.push({x:hx2+(P.x-hx2)*k,y:hy2+(P.y-24-hy2)*k,r:70*k,c:'255,228,185',a:.35,flick:0});
   }
   // hunting eyes glow in the dark planes
   for(const h of hunters){
@@ -1300,6 +1360,55 @@ function collectLights(){
 function laneTransform(k){
   const hx2=cam.x+viewW/2,hy2=cam.y+330;
   ctx.translate(hx2,hy2);ctx.scale(k,k);ctx.translate(-hx2,-hy2);
+}
+/* perspective floor plane per ground piece. VP = the lane anchor (cam.x+viewW/2, cam.y+330)
+   so the floor is geometrically invariant under the lane dolly; sc(GY)=1 keeps every
+   walk-line coordinate at its exact physics position. Junction capped at GY-22 so the
+   front floor never overpaints the back-lane depth rooms (their floor line sits at ~434). */
+function drawGroundPersp(p,m){
+  const vpx=cam.x+viewW/2,vpy=cam.y+330;
+  let yB=GY-22;
+  for(const z of depthZones){if(p.x<z.x2&&p.x+p.w>z.x1){yB=GY-8;break;}}
+  const yF=cam.y+VH+12;
+  const sc=y=>(y-vpy)/(GY-vpy),px=(wx,s2)=>vpx+(wx-vpx)*s2;
+  const sB=sc(yB),sF=sc(yF),xa=p.x,xb=p.x+p.w;
+  /* atmospheric recession: floor lit near the wall junction, falling dark toward camera */
+  const fg2=ctx.createLinearGradient(0,yB,0,yF);
+  fg2.addColorStop(0,mixRGB(m.soil,m.plate,.45));
+  fg2.addColorStop(1,mixRGB(m.soil,'rgb(0,0,0)',.35));
+  ctx.fillStyle=fg2;
+  ctx.beginPath();
+  ctx.moveTo(px(xa,sB),yB);ctx.lineTo(px(xb,sB),yB);
+  ctx.lineTo(px(xb,sF),yF);ctx.lineTo(px(xa,sF),yF);
+  ctx.closePath();ctx.fill();
+  /* wall/floor junction: plate band + faint rim that survives dark stretches */
+  ctx.fillStyle=m.plate;ctx.fillRect(px(xa,sB),yB-3,(xb-xa)*sB,6);
+  ctx.fillStyle=mixRGB(m.edge,'rgb(0,0,0)',.5);ctx.fillRect(px(xa,sB),yB-4,(xb-xa)*sB,1.8);
+  ctx.fillStyle='rgba(255,240,214,.045)';ctx.fillRect(px(xa,sB),yB-2,(xb-xa)*sB,1.2);
+  /* radial plank seams + projected gap edges, one batched stroke */
+  ctx.strokeStyle='rgba(0,0,0,.45)';ctx.lineWidth=1.8;
+  const r0=Math.max(xa+8,cam.x-viewW*.35),r1=Math.min(xb-6,cam.x+viewW*1.35);
+  ctx.beginPath();
+  for(let rx=Math.ceil(r0/64)*64;rx<r1;rx+=64){ctx.moveTo(px(rx,sB),yB);ctx.lineTo(px(rx,sF),yF);}
+  ctx.moveTo(px(xa,sB),yB);ctx.lineTo(px(xa,sF),yF);
+  ctx.moveTo(px(xb,sB),yB);ctx.lineTo(px(xb,sF),yF);
+  ctx.stroke();
+  /* lateral board joints, perspective-spaced (lowest rows sit under the tilt band: skip) */
+  ctx.strokeStyle='rgba(0,0,0,.16)';ctx.lineWidth=1.4;
+  ctx.beginPath();
+  for(const t of [.35,.6]){
+    const jy=yB+(yF-yB)*t*t,sj=sc(jy);
+    ctx.moveTo(Math.max(px(xa,sj),cam.x-10),jy);ctx.lineTo(Math.min(px(xb,sj),cam.x+viewW+10),jy);
+  }
+  ctx.stroke();
+  /* gap edge caps + hazard chevrons at the walk line (sc(GY)=1, physics coords) */
+  ctx.fillStyle=mixRGB(m.edge,'rgb(0,0,0)',.25);
+  ctx.fillRect(p.x,GY-3,5,26);ctx.fillRect(p.x+p.w-5,GY-3,5,26);
+  ctx.fillStyle='rgba(0,0,0,.35)';
+  for(let cv=0;cv<3;cv++){
+    ctx.fillRect(p.x+3+cv*7,GY+4+cv*4,3,3);
+    ctx.fillRect(p.x+p.w-6-cv*7,GY+4+cv*4,3,3);
+  }
 }
 function render(){
   const m=moodAt(cam.x+viewW/2);
@@ -1384,16 +1493,14 @@ function render(){
   for(const sf of shafts){
     if(sf.x<cam.x-320||sf.x>cam.x+viewW+320)continue;
     const g2=ctx.createLinearGradient(0,cam.y-10,0,GY);
-    g2.addColorStop(0,'rgba(172,208,198,.11)');
-    g2.addColorStop(.75,'rgba(172,208,198,.05)');
-    g2.addColorStop(1,'rgba(172,208,198,.02)');
+    g2.addColorStop(0,'rgba(172,208,198,.18)');
+    g2.addColorStop(.75,'rgba(172,208,198,.09)');
+    g2.addColorStop(1,'rgba(172,208,198,.04)');
     ctx.fillStyle=g2;
     ctx.beginPath();
     ctx.moveTo(sf.x-sf.w*.3,cam.y-10);ctx.lineTo(sf.x+sf.w*.3,cam.y-10);
     ctx.lineTo(sf.x+sf.w,GY+6);ctx.lineTo(sf.x-sf.w,GY+6);
     ctx.closePath();ctx.fill();
-    ctx.fillStyle='rgba(172,208,198,.05)';
-    ctx.beginPath();ctx.ellipse(sf.x,GY+4,sf.w,7,0,0,7);ctx.fill();
   }
   ctx.globalCompositeOperation='source-over';
   /* mid machinery pf .55: catwalks, vessels, cranes */
@@ -1477,15 +1584,31 @@ function render(){
   for(const t of tanks){
     if(t.x<cam.x-220||t.x>cam.x+viewW+220)continue;
     const col=mixRGB(m.sil2,'rgb(255,255,255)',.03);
+    /* volume: dark on far side, faint warm lift toward the nearest lamp */
+    const bodyGrad=(x,w)=>{
+      const g=ctx.createLinearGradient(x,0,x+w,0);
+      const dk=mixRGB(col,'rgb(0,0,0)',.32),lt=mixRGB(col,'rgb(255,215,150)',.05+.09*t.lnear);
+      if(t.ldir>0){g.addColorStop(0,dk);g.addColorStop(1,lt);}
+      else{g.addColorStop(0,lt);g.addColorStop(1,dk);}
+      return g;
+    };
+    const aoRim=(x,w,y,h)=>{
+      const ao=ctx.createLinearGradient(0,y+h*.6,0,GY);
+      ao.addColorStop(0,'rgba(0,0,0,0)');ao.addColorStop(1,'rgba(0,0,0,.26)');
+      ctx.fillStyle=ao;ctx.fillRect(x,y+h*.6,w,h*.4);
+      ctx.fillStyle=`rgba(255,205,125,${.08+.14*t.lnear})`;
+      ctx.fillRect(t.ldir>0?x+w-2.5:x,y+2,2.5,h*.75);
+    };
     if(t.kind==='drawer'){ /* towering drawer-chest, one drawer ajar (frame_0027) */
       const w=150*t.sc,h=240*t.sc,x=t.x-w/2,y=GY-h;
       contactShadow(t.x,w*.55,.22);
-      ctx.fillStyle=col;ctx.fillRect(x,y,w,h);
+      ctx.fillStyle=bodyGrad(x,w);ctx.fillRect(x,y,w,h);
       ctx.fillStyle='rgba(0,0,0,.3)';
       for(let ry=y+12;ry<y+h-20;ry+=48)ctx.fillRect(x+8,ry,w-16,40);
       ctx.fillStyle=mixRGB(m.edge,'rgb(0,0,0)',.5);
       for(let ry=y+32;ry<y+h-20;ry+=48){ctx.beginPath();ctx.arc(t.x,ry,4*t.sc,0,7);ctx.fill();}
       ctx.fillStyle=col;ctx.fillRect(x-12,y+58,w*.42,40);
+      aoRim(x,w,y,h);
     }else if(t.kind==='mann'){ /* dress mannequin on pole stand (frame_0008) */
       const h=210*t.sc,x=t.x,y=GY-h;
       contactShadow(x,26*t.sc,.24);
@@ -1508,11 +1631,12 @@ function render(){
     }else{ /* prop crate, lid ajar */
       const w=140*t.sc,h=110*t.sc,x=t.x-w/2,y=GY-h;
       contactShadow(t.x,w*.5,.2);
-      ctx.fillStyle=col;ctx.fillRect(x,y,w,h);
+      ctx.fillStyle=bodyGrad(x,w);ctx.fillRect(x,y,w,h);
       ctx.strokeStyle='rgba(0,0,0,.4)';ctx.lineWidth=3;
       ctx.strokeRect(x+6,y+6,w-12,h-12);
       ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+w,y+h);ctx.moveTo(x+w,y);ctx.lineTo(x,y+h);ctx.stroke();
       ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(x+8,y-16*t.sc,w*.5,16*t.sc);
+      aoRim(x,w,y,h);
     }
   }
   /* wall pipe running along level */
@@ -1585,36 +1709,12 @@ function render(){
     ctx.save();laneTransform(laneK(P.laneT));drawCluu();ctx.restore();
   }
 
-  /* platforms & ground */
+  /* platforms & ground (ground pieces flare 1.6x at the front: wider cull) */
   for(const p of plats){
-    if(p.x+p.w<cam.x-40||p.x>cam.x+viewW+40)continue;
+    const mgn=p.ground?viewW*.35:40;
+    if(p.x+p.w<cam.x-mgn||p.x>cam.x+viewW+mgn)continue;
     if(p.ground){
-      /* worn floorboards raked by lamplight (frame_0038) */
-      ctx.fillStyle=m.soil;ctx.fillRect(p.x,p.y,p.w,p.h);
-      ctx.fillStyle=m.plate;ctx.fillRect(p.x,p.y-2,p.w,16);
-      ctx.fillStyle=mixRGB(m.edge,'rgb(0,0,0)',.3);
-      ctx.fillRect(p.x,p.y-3,p.w,2.2);
-      ctx.fillStyle='rgba(0,0,0,.42)';
-      const r0=Math.max(p.x+10,cam.x-10),r1=Math.min(p.x+p.w-6,cam.x+viewW+10);
-      for(let rx=Math.ceil(r0/64)*64;rx<r1;rx+=64)ctx.fillRect(rx,p.y-2,2,15);
-      ctx.fillStyle='rgba(0,0,0,.18)';
-      for(let dx2=22;dx2<p.w;dx2+=74){
-        if(p.x+dx2<cam.x-10||p.x+dx2>cam.x+viewW+10)continue;
-        ctx.fillRect(p.x+dx2,p.y+5,34,1.6);
-      }
-      ctx.fillStyle='rgba(0,0,0,.16)';
-      for(let dx2=30;dx2<p.w;dx2+=90){
-        if(p.x+dx2<cam.x-10||p.x+dx2>cam.x+viewW+10)continue;
-        ctx.fillRect(p.x+dx2,p.y+30+((dx2*7)%60),26,6);
-      }
-      /* gap edge caps + hazard chevrons */
-      ctx.fillStyle=mixRGB(m.edge,'rgb(0,0,0)',.1);
-      ctx.fillRect(p.x,p.y-3,5,26);ctx.fillRect(p.x+p.w-5,p.y-3,5,26);
-      ctx.fillStyle='rgba(0,0,0,.35)';
-      for(let cv=0;cv<3;cv++){
-        ctx.fillRect(p.x+3+cv*7,p.y+4+cv*4,3,3);
-        ctx.fillRect(p.x+p.w-6-cv*7,p.y+4+cv*4,3,3);
-      }
+      drawGroundPersp(p,m);
     }else{
       if(!p.mover){ // hanger chains + hook plates
         ctx.strokeStyle='rgba(8,10,12,.75)';ctx.lineWidth=2;
@@ -1653,8 +1753,11 @@ function render(){
     ctx.beginPath();ctx.moveTo(lp.x,cam.y-6);ctx.lineTo(lp.x,lp.y-16);ctx.stroke();
     ctx.fillStyle='#0c0f12';
     ctx.beginPath();ctx.arc(lp.x,lp.y,13,Math.PI,0);ctx.fill();
-    ctx.fillStyle='rgba(255,200,110,.95)';
-    ctx.beginPath();ctx.arc(lp.x,lp.y-1,6.5+Math.sin(T*7+lp.x)*.5,0,7);ctx.fill();
+    /* amber glow ring around a near-white cream core (measured: core S<=24%, ring #e7e39e) */
+    ctx.fillStyle='rgba(231,227,158,.35)';
+    ctx.beginPath();ctx.arc(lp.x,lp.y-1,10.5,0,7);ctx.fill();
+    ctx.fillStyle='#fdf6d8';
+    ctx.beginPath();ctx.arc(lp.x,lp.y-1,6.5+Math.sin(T*8+lp.x)*.5,0,7);ctx.fill();
     ctx.strokeStyle='#0c0f12';ctx.lineWidth=1.6;
     ctx.beginPath();ctx.moveTo(lp.x-11,lp.y-2);ctx.lineTo(lp.x+11,lp.y-2);ctx.stroke();
     ctx.beginPath();ctx.arc(lp.x,lp.y-1,10,0,Math.PI);ctx.stroke();
@@ -1692,7 +1795,9 @@ function render(){
     ctx.fillStyle='#3a2f1e';roundRect(sg.x-26,GY-68,52,27,5);ctx.fill();
     ctx.strokeStyle=mixRGB(m.edge,'rgb(0,0,0)',.3);ctx.lineWidth=1.4;
     ctx.strokeRect(sg.x-26,GY-68,52,27);
-    ctx.fillStyle=m.edge;ctx.font='bold 15px ui-monospace,monospace';ctx.textAlign='center';
+    ctx.fillStyle='rgba(232,192,106,.12)';
+    ctx.beginPath();ctx.arc(sg.x,GY-54,26,0,7);ctx.fill();
+    ctx.fillStyle='rgba(246,236,194,.8)';ctx.font='bold 15px ui-monospace,monospace';ctx.textAlign='center';
     ctx.fillText('?',sg.x,GY-48);ctx.textAlign='left';
     const d=Math.abs(P.x-sg.x);
     if(d<150&&state==='play'){
@@ -1849,6 +1954,8 @@ function render(){
     for(let l=0;l<3;l++){
       const lw=Math.sin(T*14+l*2.1)*3;
       ctx.beginPath();ctx.moveTo(bx-8+l*8,by+8);ctx.lineTo(bx-8+l*8+lw,bug.y);ctx.stroke();}
+    ctx.fillStyle='rgba(255,90,80,.2)';
+    ctx.beginPath();ctx.arc(bx+9*bug.dir,by-3,9,0,7);ctx.fill();
     ctx.fillStyle='#ff5a50';
     ctx.beginPath();ctx.arc(bx+9*bug.dir,by-3,3,0,7);ctx.fill();
     ctx.fillStyle='#3a0d0a';
@@ -1878,36 +1985,6 @@ function render(){
   }
   ctx.globalAlpha=1;
 
-  /* foreground occluders pf 1.35 */
-  setW(1.35,1.12);
-  const fx0=cam.x*1.35;
-  for(const o of fgOcc){
-    if(o.lx<fx0-260||o.lx>fx0+viewW*1.35+260)continue;
-    for(let pass=0;pass<2;pass++){
-      const off=pass?0:3.5;
-      ctx.fillStyle=pass?'rgba(3,5,7,.8)':'rgba(3,5,7,.24)';
-      if(o.type==='pipe'){
-        ctx.fillRect(o.lx+off,cam.y*1.12-40,24*o.s,720);
-        ctx.fillRect(o.lx-7+off,cam.y*1.12+140*o.s,38*o.s,16);
-      }else if(o.type==='crate'){
-        const cy2=GY+30;
-        ctx.fillRect(o.lx+off,cy2-90*o.s,86*o.s,120*o.s);
-        ctx.fillRect(o.lx+20*o.s+off,cy2-150*o.s,70*o.s,66*o.s);
-      }else if(o.type==='fence'){ /* diamond-mesh cage panel (frame_0057) */
-        const fy=cam.y*1.12-40,fh=760,fw=340*o.s;
-        ctx.strokeStyle=pass?'rgba(3,5,7,.7)':'rgba(3,5,7,.2)';
-        ctx.lineWidth=5;
-        for(let d2=-fw/2;d2<fw/2;d2+=36){
-          ctx.beginPath();ctx.moveTo(o.lx+d2+off,fy);ctx.lineTo(o.lx+d2+150+off,fy+fh);ctx.stroke();
-          ctx.beginPath();ctx.moveTo(o.lx+d2+150+off,fy);ctx.lineTo(o.lx+d2+off,fy+fh);ctx.stroke();
-        }
-      }else{
-        gearPath(o.lx+off,GY+150,150*o.s,12,T*.06);ctx.fill();
-      }
-    }
-  }
-  setW(1);
-
   /* ---------- light & dark passes ---------- */
   const lights=collectLights();
   // warm glow (additive)
@@ -1917,14 +1994,33 @@ function render(){
     if(lp.x<cam.x-160||lp.x>cam.x+viewW+160)continue;
     const cg=ctx.createLinearGradient(0,lp.y,0,GY+18);
     const fl2=.14+.035*Math.sin(T*8+lp.x);
-    cg.addColorStop(0,`rgba(255,205,125,${fl2})`);
-    cg.addColorStop(1,'rgba(255,205,125,0)');
+    /* cream apex (S<=25%), amber body, nonzero foot: light must LAND on the floor */
+    cg.addColorStop(0,`rgba(255,238,210,${fl2})`);
+    cg.addColorStop(.3,`rgba(255,205,125,${fl2*.85})`);
+    cg.addColorStop(.72,`rgba(255,205,125,${fl2*.55})`);
+    cg.addColorStop(1,`rgba(255,205,125,${fl2*.3})`);
     ctx.fillStyle=cg;
+    /* feathered cone: wide soft skirt + brighter core (LN 15-20deg, soft edges) */
     ctx.beginPath();
     ctx.moveTo(lp.x-8,lp.y);ctx.lineTo(lp.x+8,lp.y);
-    ctx.lineTo(lp.x+74,GY+18);ctx.lineTo(lp.x-74,GY+18);
+    ctx.lineTo(lp.x+96,GY+18);ctx.lineTo(lp.x-96,GY+18);
+    ctx.closePath();ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(lp.x-6,lp.y);ctx.lineTo(lp.x+6,lp.y);
+    ctx.lineTo(lp.x+58,GY+18);ctx.lineTo(lp.x-58,GY+18);
     ctx.closePath();ctx.fill();
   }
+  /* elliptical light pools on the perspective floor — the brightest thing in an LN frame */
+  for(const lp of lamps){
+    if(!lp.onFloor||lp.x<cam.x-260||lp.x>cam.x+viewW+260)continue;
+    floorPool(lp.x,lp.r*.55,'255,205,125',.26,1+.05*Math.sin(T*8+lp.x));
+  }
+  for(const sf of shafts){
+    if(sf.x<cam.x-320||sf.x>cam.x+viewW+320)continue;
+    floorPool(sf.x,sf.w*1.7,'172,208,198',.16,1);
+  }
+  /* the headlamp visibly lands in front of Cluu */
+  if(P.laneT<.5&&P.deathT<=0)floorPool(P.x+P.dir*26,64,'255,228,185',.1,1);
   for(const l of lights){
     const fl=1+(l.flick?Math.sin(T*11+l.x)*l.flick:0);
     const r=l.r*1.15*fl;
@@ -1936,12 +2032,28 @@ function render(){
   }
   ctx.globalCompositeOperation='source-over';
 
+  /* foreground occluders pf 1.35 — AFTER the additive pass so they silhouette black against
+     the cones (camera-space order), defocused via low-res upscale (ctx.filter no-ops on iOS 15) */
+  if(REDUCED){
+    setW(1.35,1.12);drawFgOcc(ctx,cam.x*1.35);setW(1);
+  }else{
+    const fq=TOUCHY?4:3,k2=s*zk/fq;
+    fctx.setTransform(1,0,0,1,0,0);
+    fctx.clearRect(0,0,fgBlur.width,fgBlur.height);
+    fctx.setTransform(k2,0,0,k2,((-cam.x*1.35+shx)*s*zk+azx)/fq,((-cam.y*1.12+shy)*s*zk+azy)/fq);
+    drawFgOcc(fctx,cam.x*1.35);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.imageSmoothingEnabled=true;
+    ctx.drawImage(fgBlur,0,0,innerWidth,innerHeight);
+    setW(1);
+  }
+
   /* darkness buffer with punched holes */
   const q=4;
   dctx.setTransform(1,0,0,1,0,0);
   dctx.globalCompositeOperation='source-over';
   dctx.clearRect(0,0,dark.width,dark.height);
-  dctx.fillStyle=`rgba(3,6,10,${m.darkA})`;
+  dctx.fillStyle=`rgba(3,16,18,${m.darkA})`; /* chromatic teal darkness, never neutral crush */
   dctx.fillRect(0,0,dark.width,dark.height);
   dctx.globalCompositeOperation='destination-out';
   for(const l of lights){
@@ -1957,6 +2069,19 @@ function render(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.imageSmoothingEnabled=true;
   ctx.drawImage(dark,0,0,innerWidth,innerHeight);
+
+  /* ledge keep-alive: faint top-edge lines drawn over the darkness so landing targets
+     and gap edges never vanish (playability floor, not a beauty stroke) */
+  setW(1);
+  ctx.strokeStyle='rgba(240,230,205,.07)';ctx.lineWidth=1;
+  ctx.beginPath();
+  for(const p of plats){
+    if(p.x+p.w<cam.x-40||p.x>cam.x+viewW+40)continue;
+    const yl=p.ground?GY-1:p.y-1;
+    ctx.moveTo(Math.max(p.x,cam.x-10),yl);ctx.lineTo(Math.min(p.x+p.w,cam.x+viewW+10),yl);
+  }
+  ctx.stroke();
+  ctx.setTransform(dpr,0,0,dpr,0,0);
 
   /* ---------- screen-space post ---------- */
   const W=innerWidth,H=innerHeight;
@@ -1999,18 +2124,22 @@ function render(){
   }
   // teal grade: one film look over everything (cinematic + gameplay share the grade)
   ctx.globalCompositeOperation='overlay';
-  ctx.fillStyle='rgba(14,54,58,.17)';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='rgba(14,54,58,.22)';ctx.fillRect(0,0,W,H);
   ctx.globalCompositeOperation='source-over';
-  // tilt-shift diorama bands (soft dark falloff top + bottom)
+  // tilt-shift diorama bands (teal-black, never neutral black)
   const tb=ctx.createLinearGradient(0,0,0,H*.2);
-  tb.addColorStop(0,'rgba(1,3,4,.55)');tb.addColorStop(1,'rgba(1,3,4,0)');
+  tb.addColorStop(0,'rgba(3,10,12,.55)');tb.addColorStop(1,'rgba(3,10,12,0)');
   ctx.fillStyle=tb;ctx.fillRect(0,0,W,H*.2);
   const bb=ctx.createLinearGradient(0,H*.85,0,H);
-  bb.addColorStop(0,'rgba(1,3,4,0)');bb.addColorStop(1,'rgba(1,3,4,.5)');
+  bb.addColorStop(0,'rgba(3,10,12,0)');bb.addColorStop(1,'rgba(3,10,12,.5)');
   ctx.fillStyle=bb;ctx.fillRect(0,H*.85,W,H*.15);
-  const vg=ctx.createRadialGradient(W/2,H/2,H*.34,W/2,H/2,H*.94);
-  vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(1,3,5,.62)');
+  const vg=ctx.createRadialGradient(W/2,H/2,H*.3,W/2,H/2,H*.9);
+  vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(3,10,12,.75)');
   ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
+  // floor lift: no pixel below teal-black rgb(10,17,19) — LN never crushes to #000
+  ctx.globalCompositeOperation='lighten';
+  ctx.fillStyle='#0a1113';ctx.fillRect(0,0,W,H);
+  ctx.globalCompositeOperation='source-over';
 }
 /* ============================== boss drawing ============================== */
 function drawBoss(bs,m){
@@ -2029,7 +2158,13 @@ function drawBoss(bs,m){
   const bx=bs.x+jx-lunge+recoil, byBase=bs.state==='dead'?GY-60:290+bob+jy;
   /* the reveal is the shadow: wall-sized silhouette behind the warden (frame_0090) */
   if(bs.state!=='dead'&&eyeA>.02&&alpha>.02){
-    const sA=.42*eyeA*alpha,sway=Math.sin(T*.7+bs.i)*10;
+    const sA=.5*eyeA*alpha,sway=Math.sin(T*.7+bs.i)*10;
+    /* a shadow needs a lit wall to block: soft warm wash behind the silhouette */
+    const ww=ctx.createRadialGradient(bx+70+sway,byBase-130,0,bx+70+sway,byBase-130,420);
+    ww.addColorStop(0,`rgba(190,170,120,${.13*eyeA*alpha})`);
+    ww.addColorStop(1,'rgba(190,170,120,0)');
+    ctx.fillStyle=ww;
+    ctx.fillRect(bx-360+sway,byBase-560,860,860);
     ctx.save();
     ctx.translate(bx+70+sway,byBase-130);
     ctx.scale(2.3,2.3);
@@ -2059,13 +2194,14 @@ function drawBoss(bs,m){
     ctx.beginPath();ctx.arc(ex,ey,r+2.5,0,7);ctx.stroke();
   };
   const i=bs.i;
-  if(i===0){ /* Gatekeeper: broad riveted head-torso */
+  if(i===0){ /* Gatekeeper: broad riveted head-torso, edges melt into the dark */
     ctx.fillStyle=dark2;roundRect(-95,-85,190,190,18);ctx.fill();
     ctx.fillStyle=mid;roundRect(-78,-68,156,90,12);ctx.fill();
     ctx.fillStyle=dark2;
     for(let k=-70;k<=70;k+=20)ctx.fillRect(k-3,36,6,54); /* portcullis jaw */
-    ctx.strokeStyle=edge;ctx.lineWidth=2;
-    ctx.strokeRect(-95,-85,190,190);
+    const bf=ctx.createLinearGradient(0,-85,0,105);
+    bf.addColorStop(0,'rgba(0,0,0,.45)');bf.addColorStop(.5,'rgba(0,0,0,0)');bf.addColorStop(1,'rgba(0,0,0,.45)');
+    ctx.fillStyle=bf;roundRect(-95,-85,190,190,18);ctx.fill();
     ctx.fillStyle=edge;
     [[-86,-76],[86,-76],[-86,96],[86,96]].forEach(([rx,ry])=>{ctx.beginPath();ctx.arc(rx,ry,3,0,7);ctx.fill();});
     eye(-38,-26,13);eye(38,-26,13);
@@ -2197,8 +2333,8 @@ function floorBelow(x,y){
 function drawCluu(){
   if(P.deathT>.55)return;
   const x=P.x,y=P.y;
-  ctx.fillStyle='rgba(0,0,0,.3)';
-  ctx.beginPath();ctx.ellipse(x,floorBelow(x,y),16*P.sx,4.5,0,0,7);ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,.55)';
+  ctx.beginPath();ctx.ellipse(x,floorBelow(x,y),26*P.sx,6.5,0,0,7);ctx.fill();
   ctx.save();
   ctx.translate(x,y);
   ctx.rotate(clamp(P.vx*.00035,-.09,.09));
