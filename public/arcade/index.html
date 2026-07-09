@@ -245,6 +245,13 @@ function resize(){
   fgBlur.width=Math.ceil(innerWidth/fq); fgBlur.height=Math.ceil(innerHeight/fq);
 }
 addEventListener('resize',resize); resize();
+/* painted wall plates (generated from the LN refs); vector wall stays as fallback until loaded */
+const PBASE=/\/arcade\//.test(location.pathname)?'plates/':'arcade/plates/';
+const plateImgs=[1,2,3,4,5].map(n=>{const i=new Image();i.decoding='async';i.src=PBASE+'wall_l'+n+'.webp';return i;});
+{
+  const t=document.getElementById('title');
+  t.style.background='linear-gradient(rgba(4,9,11,.6),rgba(3,7,9,.88)),url('+PBASE+'title_art.webp) center/cover no-repeat';
+}
 (function makeGrain(){
   grain.width=grain.height=160;
   const g=grain.getContext('2d'), im=g.createImageData(160,160);
@@ -2223,6 +2230,31 @@ function render(){
   const sky=ctx.createLinearGradient(0,cam.y,0,cam.y+VH);
   sky.addColorStop(0,m.skyT);sky.addColorStop(.55,m.skyB);sky.addColorStop(1,m.skyT);
   ctx.fillStyle=sky;ctx.fillRect(cam.x-10,cam.y-10,viewW+20,VH+20);
+  /* painted wall plates: mirror-tiled, cross-faded at level seams (pf .92) */
+  const cxm=cam.x+viewW/2, liP=levelOf(cxm);
+  let ljP=liP,tP=0;
+  if(liP<PAL.length-1&&cxm>LB[liP+1]-460){ljP=liP+1;tP=(cxm-(LB[liP+1]-460))/460;tP=tP*tP*(3-2*tP);}
+  const pOK=i=>plateImgs[i]&&plateImgs[i].complete&&plateImgs[i].naturalWidth>0;
+  const plateOn=pOK(liP)&&(tP===0||pOK(ljP));
+  if(plateOn){
+    setW(.92,.97);
+    const yT=cam.y*.97-6,yB2=GY-16,hP=yB2-yT,wP=hP*16/9,x0=cam.x*.92;
+    const drawP=(img,a)=>{
+      ctx.globalAlpha=a;
+      for(let i=Math.floor((x0-40)/wP);i*wP<x0+viewW+40;i++){
+        const px2=i*wP;
+        if(i&1){
+          ctx.save();ctx.translate(px2+wP/2,0);ctx.scale(-1,1);ctx.translate(-(px2+wP/2),0);
+          ctx.drawImage(img,px2,yT,wP,hP);ctx.restore();
+        }else ctx.drawImage(img,px2,yT,wP,hP);
+      }
+    };
+    drawP(plateImgs[liP],.94);
+    if(tP>0)drawP(plateImgs[ljP],.94*tP);
+    ctx.globalAlpha=1;
+    setW(1);
+  }
+  if(!plateOn){
   const gpx=cam.x*.45;
   ctx.globalAlpha=.14;
   ctx.translate(gpx,0);
@@ -2230,7 +2262,9 @@ function render(){
   ctx.fillRect(cam.x-10-gpx,cam.y+56,viewW+20,(GY-26)-(cam.y+56));
   ctx.translate(-gpx,0);
   ctx.globalAlpha=1;
+  }
 
+if(!plateOn){
   /* far haze skyline pf .09 (atmospheric perspective) */
   setW(.09,.16);
   const s20=cam.x*.09;
@@ -2240,6 +2274,8 @@ function render(){
     ctx.fillRect(b.lx,430-b.h,b.w,b.h+120);
     if(b.v<.4)ctx.fillRect(b.lx+b.w*.3,430-b.h-18,b.w*.4,20);
   }
+}
+if(!plateOn){
   /* monumental furniture pf .18 (double-draw fake blur) — kids are mouse-sized (frame_0038) */
   setW(.18,.3);
   const sx0=cam.x*.18;
@@ -2268,6 +2304,8 @@ function render(){
       }
     }
   }
+}
+if(!plateOn){
   /* giant gears pf .38 */
   setW(.38,.5);
   const gx0=cam.x*.38;
@@ -2278,6 +2316,7 @@ function render(){
     ctx.fillStyle=m.skyT;
     ctx.beginPath();ctx.arc(g.lx,g.y,g.r*.38,0,7);ctx.fill();
   }
+}
   /* drifting smog pf .26 */
   setW(.26,.4);
   const fb0=cam.x*.26;
@@ -2308,6 +2347,7 @@ function render(){
     ctx.closePath();ctx.fill();
   }
   ctx.globalCompositeOperation='source-over';
+if(!plateOn){
   /* mid machinery pf .55: catwalks, vessels, cranes */
   setW(.55,.72);
   const mm0=cam.x*.55;
@@ -2342,6 +2382,7 @@ function render(){
       ctx.fillRect(mc.lx+jib-31,hy,14,10);
     }
   }
+}
   /* interior colonnade pf .82 */
   setW(.82,.94);
   const ar0=cam.x*.82;
@@ -2444,12 +2485,14 @@ function render(){
       aoRim(x,w,y,h);
     }
   }
+if(!plateOn){
   /* wall pipe running along level */
   ctx.strokeStyle=mixRGB(m.sil2,'rgb(255,255,255)',.06);ctx.lineWidth=10;
   ctx.beginPath();ctx.moveTo(cam.x-10,150);ctx.lineTo(cam.x+viewW+10,150);ctx.stroke();
   ctx.fillStyle='rgba(0,0,0,.28)';
   for(let px=Math.floor(cam.x/240)*240;px<cam.x+viewW+40;px+=240)ctx.fillRect(px,142,10,16);
 
+}
   /* ---------- back lanes (depth rooms, deepest plane first) ---------- */
   for(const z of depthZones){
     if(z.x2<cam.x-260||z.x1>cam.x+viewW+260)continue;
