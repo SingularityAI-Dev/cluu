@@ -1,4 +1,10 @@
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#090e14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <title>CLUU — a clockwork adventure about learning Claude Code</title>
 <style>
   :root{
@@ -20,7 +26,17 @@
   @media (prefers-reduced-motion: reduce){#game.tilt{animation:none;transform:rotate(2deg) scale(1.1)}}
   .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
     background:rgba(6,10,16,.78);backdrop-filter:blur(7px);z-index:30;
-    opacity:0;pointer-events:none;transition:opacity .5s ease}
+    opacity:0;pointer-events:none;transition:opacity .5s ease;overflow-y:auto}
+  .overlay .card{margin:auto}
+  @media (max-height:560px){
+    #title .card{padding:14px 22px}
+    #title h1{font-size:clamp(34px,8vh,56px)}
+    #title .gear{font-size:18px;margin-bottom:0}
+    #title .story{font-size:12.5px;line-height:1.45;margin-bottom:12px}
+    #title .sub{font-size:11px;margin-bottom:10px}
+    #title .keys{display:none}
+    #title .rule{margin:6px auto 8px}
+  }
   .overlay.show{opacity:1;pointer-events:auto}
 
   /* letterbox + chapter cards */
@@ -134,18 +150,31 @@
   /* touch */
   #touch{position:absolute;inset:0;pointer-events:none;z-index:20;display:none}
   #touch.on{display:block}
-  .tbtn{position:absolute;bottom:26px;width:68px;height:68px;border-radius:50%;
+  .tbtn{position:absolute;bottom:calc(26px + env(safe-area-inset-bottom));width:76px;height:76px;border-radius:50%;
     background:rgba(13,18,26,.55);border:1.5px solid #3c4a5e;color:var(--paper);
     font-family:var(--mono);font-size:24px;display:flex;align-items:center;justify-content:center;
     pointer-events:auto;user-select:none;-webkit-user-select:none;touch-action:none}
   .tbtn:active{background:rgba(201,151,63,.3);border-color:var(--brass)}
-  #tl{left:22px}#tr{left:104px}#tj{right:22px;width:80px;height:80px}
-  #ti{right:120px;bottom:36px;width:auto;height:auto;border-radius:10px;padding:12px 20px;font-size:14px;color:var(--mint);display:none}
+  #tl{left:calc(22px + env(safe-area-inset-left))}#tr{left:calc(114px + env(safe-area-inset-left))}#tj{right:calc(24px + env(safe-area-inset-right));width:88px;height:88px}
+  #ti{right:calc(24px + env(safe-area-inset-right));bottom:140px;width:auto;height:auto;border-radius:12px;padding:14px 24px;font-size:16px;color:var(--mint);display:none}
   #ti.on{display:flex}
-  #td{right:22px;bottom:120px;width:56px;height:56px;font-size:20px;color:var(--brassL);display:none}
+  #td{right:calc(122px + env(safe-area-inset-right));bottom:26px;width:64px;height:64px;font-size:24px;color:var(--brassL);display:none}
   #td.on{display:flex}
-  #tf{right:22px;bottom:186px;width:56px;height:56px;font-size:20px;color:var(--mint);display:none}
+  #tf{right:calc(122px + env(safe-area-inset-right));bottom:100px;width:64px;height:64px;font-size:24px;color:var(--mint);display:none}
   #tf.on{display:flex}
+  #setbtn{top:16px;right:60px;pointer-events:auto;cursor:pointer;color:var(--dim);user-select:none}
+  #setbtn:hover{color:var(--paper)}
+  #mute{right:16px}
+  #setpanel{position:absolute;top:56px;right:16px;z-index:40;display:none;
+    background:rgba(9,13,19,.96);border:1px solid #3a4656;border-radius:12px;padding:16px 18px;
+    box-shadow:0 18px 60px rgba(0,0,0,.7);min-width:250px}
+  #setpanel.on{display:block}
+  #setpanel h3{font-family:var(--mono);font-size:12px;letter-spacing:.2em;color:var(--brassL);margin:0 0 12px}
+  #setpanel label{display:block;font-family:var(--mono);font-size:12px;color:#cfd2c6;margin-bottom:10px}
+  #setpanel input[type=range]{width:100%;accent-color:#c9973f}
+  #setpanel .chk{display:flex;gap:8px;align-items:center}
+  #setpanel .row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+  #setpanel .btn{padding:8px 16px;font-size:12px}
   @media (prefers-reduced-motion: reduce){ .opt.wrong{animation:none} .lb{transition:transform .3s} }
 </style>
 
@@ -159,6 +188,7 @@
     <div class="chip" id="cards">&#9646; 0/3</div>
     <div class="chip" id="lvls"></div>
     <div class="chip" id="mute" title="sound on/off">&#9836;</div>
+    <div class="chip" id="setbtn" title="display settings">&#9881;</div>
     <div id="toast"></div>
   </div>
 
@@ -207,6 +237,15 @@
 
   <div class="overlay" id="modal"></div>
 
+  <div id="setpanel">
+    <h3>display</h3>
+    <label>brightness <input type="range" id="sBri" min="70" max="170" value="100"></label>
+    <label>contrast <input type="range" id="sCon" min="80" max="130" value="100"></label>
+    <label>darkness <input type="range" id="sDark" min="45" max="115" value="100"></label>
+    <label class="chk"><input type="checkbox" id="sLow"> low effects (weak devices)</label>
+    <div class="row"><button class="btn ghost" id="sReset">reset</button><button class="btn" id="sClose">done</button></div>
+  </div>
+
   <div class="overlay" id="ending">
     <div class="card">
       <h1>The Boilerworks, Relit</h1>
@@ -245,14 +284,38 @@ const fgBlur = document.createElement('canvas'); // low-res foreground buffer (u
 const fctx = fgBlur.getContext('2d');
 const grain = document.createElement('canvas');  // film grain tile
 function resize(){
-  dpr=Math.min(window.devicePixelRatio||1,2);
+  dpr=Math.min(window.devicePixelRatio||1,(typeof LOWFX!=='undefined'&&LOWFX)?1:2);
   canvas.width=innerWidth*dpr; canvas.height=innerHeight*dpr;
   s=innerHeight/VH; viewW=innerWidth/s;
   dark.width=Math.ceil(innerWidth/4); dark.height=Math.ceil(innerHeight/4);
   const fq=4;
   fgBlur.width=Math.ceil(innerWidth/fq); fgBlur.height=Math.ceil(innerHeight/fq);
 }
-addEventListener('resize',resize); resize();
+/* display settings: persisted, applied as a GPU css filter + darkness scale */
+const gSet=Object.assign({bri:100,con:100,dark:100,low:matchMedia('(pointer: coarse)').matches},
+  JSON.parse(localStorage.getItem('cluuSet')||'{}'));
+let LOWFX=!!gSet.low;
+function applySet(){
+  canvas.style.filter=`brightness(${gSet.bri/100}) contrast(${gSet.con/100})`;
+  LOWFX=!!gSet.low;
+  localStorage.setItem('cluuSet',JSON.stringify(gSet));
+  resize();
+}
+addEventListener('resize',resize); resize(); applySet();
+{
+  const bri=document.getElementById('sBri'),con=document.getElementById('sCon'),
+        dk=document.getElementById('sDark'),low=document.getElementById('sLow'),
+        pan=document.getElementById('setpanel');
+  bri.value=gSet.bri;con.value=gSet.con;dk.value=gSet.dark;low.checked=!!gSet.low;
+  const upd=()=>{gSet.bri=+bri.value;gSet.con=+con.value;gSet.dark=+dk.value;gSet.low=low.checked;applySet();};
+  [bri,con,dk,low].forEach(el=>el.addEventListener('input',upd));
+  document.getElementById('setbtn').addEventListener('click',()=>pan.classList.toggle('on'));
+  document.getElementById('sClose').addEventListener('click',()=>pan.classList.remove('on'));
+  document.getElementById('sReset').addEventListener('click',()=>{
+    gSet.bri=100;gSet.con=100;gSet.dark=100;gSet.low=matchMedia('(pointer: coarse)').matches;
+    bri.value=100;con.value=100;dk.value=100;low.checked=gSet.low;applySet();});
+}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
 /* painted wall plates (generated from the LN refs); vector wall stays as fallback until loaded */
 const PBASE=/\/arcade\//.test(location.pathname)?'plates/':'arcade/plates/';
 const plateImgs=['wall_l1','wall_sluice','wall_l2b','wall_l3b','wall_l5'].map(n=>{const i=new Image();i.decoding='async';i.src=PBASE+n+'.webp';return i;});
@@ -881,7 +944,7 @@ function drawWeather(m){
     for(let band=0;band<2;band++){
       ctx.globalAlpha=(band?.17:.11)*wR;
       ctx.beginPath();
-      for(let i=band;i<RAIN_N;i+=2){
+      for(let i=band;i<RAIN_N;i+=(LOWFX?4:2)){
         const sx=rainA[i*3],sp=rainA[i*3+1],ln=rainA[i*3+2]*(band?1.35:1)*s;
         const yy=(((sx*7+T*sp)%1)+1)%1*(H+120)-60;
         const xx=(((sx*span-camo-yy*slant)%span)+span)%span-100;
@@ -896,7 +959,7 @@ function drawWeather(m){
     ctx.fillStyle='rgb(9,19,13)';
     ctx.globalAlpha=.75*wL;
     const span=W+240,camo=cam.x*s*.25;
-    for(let i=0;i<LEAF_N;i++){
+    for(let i=0;i<LEAF_N;i+=(LOWFX?2:1)){
       const sx=leafA[i*4],sp=leafA[i*4+1],ph=leafA[i*4+2],sz=leafA[i*4+3];
       const yy=(((sx*3.7+T*sp*.045)%1)+1)%1*(H+140)-70;
       const xx=(((sx*span-camo)%span)+span)%span-120+Math.sin(T*(.7+sp)+ph)*46*s;
@@ -1893,6 +1956,10 @@ function bossDefeated(bs){
 /* ============================== flow ============================== */
 function startGame(){
   initAudio();
+  if(TOUCHY){
+    try{document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();}catch(e){}
+    try{screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape').catch(()=>{});}catch(e){}
+  }
   const prime=el=>{
     el._prime=true;el.src=ABASE+'music_l1.mp3';el.muted=true;
     el.play().then(()=>{if(el._prime){el.pause();}el.muted=false;})
@@ -1984,8 +2051,8 @@ function update(dt){
   /* depth lane switching: ↓/S deeper, ↑/W forward */
   P.laneT+=(P.lane-P.laneT)*(1-Math.exp(-9*dt));
   const dz=zoneAtX(P.x);
-  $('tf').classList.toggle('on',!!dz&&TOUCHY&&P.onGround&&P.lane<(dz?dz.maxLane:0));
-  $('td').classList.toggle('on',TOUCHY&&P.lane>0);
+  $('tf').classList.toggle('on',TOUCHY);
+  $('td').classList.toggle('on',TOUCHY);
   if(dz&&!seenDepthHint&&P.lane===0){
     seenDepthHint=true;
     toast('a passage opens into the depth','↑ steps deeper · ↓ steps back toward the light · Space jumps');
@@ -3753,7 +3820,7 @@ if(!plateOn){
 
   /* foreground occluders pf 1.35 — AFTER the additive pass so they silhouette black against
      the cones (camera-space order), defocused via low-res upscale (ctx.filter no-ops on iOS 15) */
-  if(REDUCED){
+  if(REDUCED||LOWFX){
     setW(1.35,1.12);drawFgOcc(ctx,cam.x*1.35);setW(1);
   }else{
     const fq=4,k2=s*zk/fq;
@@ -3772,7 +3839,8 @@ if(!plateOn){
   dctx.setTransform(1,0,0,1,0,0);
   dctx.globalCompositeOperation='source-over';
   dctx.clearRect(0,0,dark.width,dark.height);
-  const dA2=(bossFlicker>0&&(((bossFlicker*24)|0)%2))?Math.min(.92,m.darkA+.16):m.darkA;
+  const dScale=gSet.dark/100;
+  const dA2=Math.min(.92,((bossFlicker>0&&(((bossFlicker*24)|0)%2))?m.darkA+.16:m.darkA)*dScale);
   dctx.fillStyle=`rgba(3,16,18,${dA2})`; /* chromatic teal darkness, never neutral crush */
   dctx.fillRect(0,0,dark.width,dark.height);
   dctx.globalCompositeOperation='destination-out';
@@ -3853,7 +3921,7 @@ if(!plateOn){
     ctx.fillStyle=`rgba(4,7,11,${clamp(a,0,1)})`;ctx.fillRect(0,0,W,H);
   }
   // grain + vignette
-  if(!REDUCED){
+  if(!REDUCED&&!LOWFX){
     ctx.globalAlpha=.5;
     ctx.save();
     ctx.translate(-((T*731)%160),-((T*547)%160));
@@ -3874,7 +3942,7 @@ if(!plateOn){
   bb.addColorStop(0,'rgba(3,10,12,0)');bb.addColorStop(1,'rgba(3,10,12,.5)');
   ctx.fillStyle=bb;ctx.fillRect(0,H*.85,W,H*.15);
   const vg=ctx.createRadialGradient(W/2,H/2,H*.3,W/2,H/2,H*.9);
-  vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(3,10,12,.75)');
+  vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,`rgba(3,10,12,${.75*gSet.dark/100})`);
   ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
   // floor lift: no pixel below teal-black rgb(10,17,19) — LN never crushes to #000
   ctx.globalCompositeOperation='lighten';
