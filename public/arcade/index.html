@@ -757,14 +757,20 @@ const signs=[
  {x:900, t:'Brass cogs are the works\u2019 own armor. Carry 25, and in a warden\u2019s duel they will shatter to take a blow meant for you.'},
  {x:1420,t:'Mind the gap, little engine. A running start, and hold that jump.'},
  {x:2160,t:'Keeper\u2019s tip: forget the words mid-task? Type /help inside Claude Code — it lists every command the companion knows.'},
+ {x:1840,t:'Know your companion truly: an AI agent living in the terminal. It reads your files, writes code, runs the commands itself. Not autocomplete — a worker.'},
  {x:2350,t:'A warden holds each gate. Wardens test what the terminals teach \u2014 answer well, and they yield. Your cogs will shield your first mistakes.'},
  {x:3650,t:'The Archive remembers everything… it just cannot remember where it put it. Punch-cards mend its mind.'},
  {x:4700,t:'Keeper’s tip: /help lists every command Claude Code knows. No shame in asking the works.'},
+ {x:5500,t:'Keeper’s tip: mid-work, press # and speak a rule — “always use tabs” — and the companion writes it into memory for every session after.'},
+ {x:6900,t:'The keeper’s craft has an order: explore, then plan, then code, then verify. Every sound repair walks those four rooms, in that order.'},
  {x:7000,t:'The Halls drift on chain-hoists. Watch a platform’s swing twice, then jump once.'},
  {x:8850,t:'Keeper’s tip: press Esc to interrupt Claude mid-task. The machine serves the hand, never the reverse.'},
+ {x:9430,t:'A vague errand — “make it better” — is fog. Cut fog into small, verifiable steps before you begin, and the works will oblige.'},
  {x:10450,t:'The Foundry pours at all hours. What it casts, the lamps must remember — commit, and nothing melts away.'},
+ {x:11600,t:'Keeper’s tip: when a change breaks everything, do not dig — say “roll back to the last good commit.” The lamps walk you home.'},
  {x:12250,t:'Keeper’s tip: ask Claude to “explain this file” — the fastest lantern in any dark codebase.'},
  {x:13800,t:'It nests above the boiler. It hates one thing more than light: a test that passes.'},
+ {x:14900,t:'Keeper’s tip: a fix you do not understand will bite twice. Ask the companion to explain the root cause, every time.'},
  {x:15600,t:'Keeper’s tip: type @ to point at a file — “explain @engine.js”. Precision is power.'},
 ];
 const cardsArr=[
@@ -847,7 +853,7 @@ const ECHOES=[
  {x:0,vo:2,gap:0,t:"The companion remembers this workshop through one scroll: CLAUDE.md. What you write there, it knows every morning. Write down how the works are built, and you will only say it once."},
  {x:4350,vo:3,t:"Context, little one, is a lamp's oil. Long sessions burn it low, and the light grows strange. When the companion rambles, clear the chamber and begin again."},
  {x:0,vo:4,gap:1,t:"Point, do not gesture. Type the little @ sigil and name the file: explain at boiler dot j s. Precision is respect, and respect is speed."},
- {x:8300,vo:5,t:"A plan is a lantern held ahead of the feet. Before any great cutting, say: make a plan first, touch nothing. Read it slowly. Then let the blades move."},
+ {x:9020,vo:5,t:"A plan is a lantern held ahead of the feet. Before any great cutting, say: make a plan first, touch nothing. Read it slowly. And when you spy a flaw in it, say so — refine the draught together before you approve. Then let the blades move."},
  {x:0,vo:6,gap:2,t:"When the machine runs somewhere you did not intend, press Escape. It stops mid-stride, and takes no offence. The hand commands. The machine serves."},
  {x:11500,vo:7,t:"Risky work belongs on a branch, keeper. Main is the town square. Branches are the workshop cellar. Break things where nobody lives."},
  {x:0,vo:8,gap:3,t:"Never trust a fix you cannot prove. Ask the companion to run the tests, and watch them pass with your own eyes. Proof, keeper. Hope is not a material."},
@@ -2314,6 +2320,7 @@ function update(dt){
     playBuf(buf.lhits,.65);
     letterbox(true);
     chapterCard(LNAMES[lv][0],LNAMES[lv][1],2800);
+    setTimeout(()=>{if(state==='play')toast('buddy shift: '+BUDDYS[lv].name,BUDDYS[lv].flavor+' \u00b7 an old /buddy, remembered');},3400);
     setTimeout(()=>{if(state==='play')letterbox(false);},3000);
   }
   const tx=clamp(P.x-viewW*.42+P.vx*.3,0,LW-viewW);
@@ -4265,6 +4272,48 @@ function floorBelow(x,y){
   for(const p of list)if(x>p.x-4&&x<p.x+p.w+4&&p.y>=y-2&&p.y<best)best=p.y;
   return Math.min(best,y+240)+2;
 }
+/* Claude buddies (homage to /buddy, the 2026 terminal tamagotchi): a different
+   species-costume per level, worn over the pixel-Claude body */
+const BUDDYS=[
+ {name:'ROBOT',    flavor:'DEBUGGING 94 \u00b7 SNARK 12', tint:'#9aa7ad'},
+ {name:'AXOLOTL',  flavor:'PATIENCE 88 \u00b7 CHAOS 31',  tint:'#e89a9a'},
+ {name:'GHOST',    flavor:'CHAOS 77 \u00b7 WISDOM 64',    tint:'#cfd8dc'},
+ {name:'OWL',      flavor:'WISDOM 96 \u00b7 PATIENCE 71', tint:'#b08a5a'},
+ {name:'DRAGON',   flavor:'CHAOS 92 \u00b7 DEBUGGING 83', tint:'#7fae8a'},
+];
+function drawBuddyBits(li,lean){
+  /* small species features, drawn between body and helmet */
+  if(li===0){ /* robot: antenna + bolt cheeks */
+    ctx.strokeStyle='#9aa7ad';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(-8,-32);ctx.lineTo(-8,-40);ctx.stroke();
+    ctx.fillStyle='#cfd8dc';ctx.beginPath();ctx.arc(-8,-41.5,2,0,7);ctx.fill();
+    ctx.fillStyle='#7d8a90';
+    ctx.beginPath();ctx.arc(-11+lean,-15,1.6,0,7);ctx.arc(13+lean,-15,1.6,0,7);ctx.fill();
+  }else if(li===1){ /* axolotl: gill fronds */
+    ctx.strokeStyle='#e89a9a';ctx.lineWidth=2.4;ctx.lineCap='round';
+    ctx.beginPath();
+    for(const s2 of [-1,1])for(let g=0;g<3;g++){
+      const gy=-26+g*5,wob=Math.sin(T*3+g)*1.5;
+      ctx.moveTo(s2*14,gy);ctx.lineTo(s2*(20+g*1.5)+wob,gy-3);
+    }
+    ctx.stroke();ctx.lineCap='butt';
+  }else if(li===2){ /* ghost: pale wavy hem */
+    ctx.fillStyle='rgba(207,216,220,.5)';
+    ctx.beginPath();
+    ctx.moveTo(-14,-8);
+    for(let k=0;k<4;k++)ctx.quadraticCurveTo(-14+k*7+3.5,-3+Math.sin(T*4+k)*1.5,-14+(k+1)*7,-8);
+    ctx.lineTo(14,-11);ctx.lineTo(-14,-11);ctx.closePath();ctx.fill();
+  }else if(li===3){ /* owl: brow tufts */
+    ctx.fillStyle='#b08a5a';
+    ctx.beginPath();ctx.moveTo(-10,-31);ctx.lineTo(-5,-28);ctx.lineTo(-11,-26);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(14,-31);ctx.lineTo(9,-28);ctx.lineTo(15,-26);ctx.closePath();ctx.fill();
+  }else{ /* dragon: horns + tail spike */
+    ctx.fillStyle='#7fae8a';
+    ctx.beginPath();ctx.moveTo(-9,-31);ctx.lineTo(-7,-38);ctx.lineTo(-4,-31);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(10,-31);ctx.lineTo(12,-38);ctx.lineTo(15,-31);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(-14,-14);ctx.lineTo(-20,-11);ctx.lineTo(-14,-9);ctx.closePath();ctx.fill();
+  }
+}
 function drawCluu(){
   if(P.deathT>.55)return;
   if(invulnT>0&&((invulnT*14)|0)%2)return; /* hit-flash blink */
@@ -4294,10 +4343,12 @@ function drawCluu(){
   ctx.strokeStyle='#4a2418';ctx.lineWidth=2.3;
   ctx.beginPath();ctx.moveTo(-12,-24);ctx.lineTo(-15+step*.8,-13);ctx.stroke();
   ctx.fillStyle='#4a2418';ctx.beginPath();ctx.arc(-15+step*.8,-12.4,1.7,0,7);ctx.fill();
-  /* tiny body: terracotta only where top-light hits, base sunk to #6b3a2c */
+  /* pixel-Claude slab body: blocky, terracotta, tinted faintly by the level's buddy */
+  const bli=clamp(levelOf(P.x),0,4);
   const bg=ctx.createLinearGradient(0,-32,0,-8);
-  bg.addColorStop(0,'#d97757');bg.addColorStop(.38,'#a35540');bg.addColorStop(1,'#6b3a2c');
-  ctx.fillStyle=bg;roundRect(-14,-32,28,24,7);ctx.fill();
+  bg.addColorStop(0,mix('#d97757',BUDDYS[bli].tint,.14));
+  bg.addColorStop(.5,'#c96a4c');bg.addColorStop(1,'#8a4630');
+  ctx.fillStyle=bg;roundRect(-14,-32,28,24,3);ctx.fill();
   ctx.strokeStyle='rgba(255,240,214,.13)';ctx.lineWidth=1.2;
   ctx.beginPath();ctx.moveTo(13.6,-27);ctx.lineTo(13.6,-14);ctx.stroke();
   /* corner rivets, dim */
@@ -4322,17 +4373,16 @@ function drawCluu(){
   /* square camera eyes (identity), low under the brim */
   let lean=P.onGround?clamp(Math.abs(P.vx)*.008,0,2.2):1;
   if(P.glanceT>0)lean+=P.glanceDir*2.2*Math.sin((P.glanceT/.8)*Math.PI);
-  const eh=P.blink>0?2:9;
+  const eh=P.blink>0?2:10;
+  /* rectangular notch eyes, straight out of the pixel mascot */
   const eyeSq=(ex)=>{
-    ctx.fillStyle='#140d14';roundRect(ex-4.5+lean,-20-eh/2,9,eh,2.5);ctx.fill();
-    if(P.blink<=0){
-      ctx.strokeStyle='rgba(232,160,106,.95)';ctx.lineWidth=1.3;
-      ctx.beginPath();ctx.arc(ex+lean,-20,2.6,0,7);ctx.stroke();
-      ctx.fillStyle='#ffe9c9';ctx.beginPath();ctx.arc(ex+lean-1,-21.1,1,0,7);ctx.fill();
+    ctx.fillStyle='#1a0f14';ctx.fillRect(ex-3+lean,-25,6,eh);
+    if(P.blink<=0&&bli===0){ /* robot buddy: faint teal glow in the slots */
+      ctx.fillStyle='rgba(123,224,173,.35)';ctx.fillRect(ex-2+lean,-24,4,3);
     }
   };
-  eyeSq(-3);eyeSq(8);
-  ctx.fillStyle='#57281a';roundRect(2.5+lean,-13.5,6,2,1);ctx.fill();
+  eyeSq(-6);eyeSq(7);
+  drawBuddyBits(bli,lean);
   /* brim shadow across the upper face */
   ctx.fillStyle='rgba(5,13,15,.45)';ctx.fillRect(-14,-32,28,9);
   /* helmet lag bob: helmet trails the run bounce by a beat, breathes at idle */
