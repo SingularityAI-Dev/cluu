@@ -424,7 +424,7 @@ function hiss(dur,vol,fc){
   src.connect(f);f.connect(g);g.connect(master);src.start(t);src.stop(t+dur);
 }
 const sfx={
-  jump(){playBuf(buf.huff,.5,.95+Math.random()*.2)||playBuf(buf.jumpW,.3,1.1);playBuf(buf.jumpW,.16,1.15+Math.random()*.1);},
+  jump(){hiss(.12,.04,2800);playBuf(buf.jumpW,.34,1.05+Math.random()*.15);playBuf(buf.steps,.26,1.4);},
   land(){playBuf(buf.steps,.5,.72);},
   cog(){
     const now=AC?AC.currentTime:0;
