@@ -756,7 +756,8 @@ const signs=[
  {x:320, t:'← → or A D to run. Space to jump — hold it to rise higher on the steam.'},
  {x:900, t:'Brass cogs are the works\u2019 own armor. Carry 25, and in a warden\u2019s duel they will shatter to take a blow meant for you.'},
  {x:1420,t:'Mind the gap, little engine. A running start, and hold that jump.'},
- {x:2350,t:'A warden holds each gate. Wardens test what the terminals teach — answer well, and they yield.'},
+ {x:2160,t:'Keeper\u2019s tip: forget the words mid-task? Type /help inside Claude Code — it lists every command the companion knows.'},
+ {x:2350,t:'A warden holds each gate. Wardens test what the terminals teach \u2014 answer well, and they yield. Your cogs will shield your first mistakes.'},
  {x:3650,t:'The Archive remembers everything… it just cannot remember where it put it. Punch-cards mend its mind.'},
  {x:4700,t:'Keeper’s tip: /help lists every command Claude Code knows. No shame in asking the works.'},
  {x:7000,t:'The Halls drift on chain-hoists. Watch a platform’s swing twice, then jump once.'},
@@ -1978,6 +1979,20 @@ function startGame(){
 }
 $('startbtn').addEventListener('click',startGame);
 $('againbtn').addEventListener('click',()=>location.reload());
+let invulnT=0,seenBiteHint=false;
+function hurtHit(sx){
+  /* a bite costs cogs, not life - unless the purse is empty */
+  if(P.deathT>0||invulnT>0)return;
+  if(cogsGot<=0){die();return;}
+  const lost=Math.min(cogsGot,8);
+  cogsGot-=lost;updHUD();
+  invulnT=1.3;hurtT=.5;shakeT=REDUCED?0:.3;
+  P.vx=(P.x<sx?-1:1)*300;P.vy=-320;P.onGround=false;
+  sfx.hurt();
+  for(let i=0;i<lost;i++)spawnSpark(P.x+(rnd()-.5)*20,P.y-24,'#e8c06a');
+  if(!seenBiteHint){seenBiteHint=true;
+    toast('\u2699 the bite scatters your cogs','with an empty purse, the next bite is the end \u00b7 lamps are checkpoints');}
+}
 function die(){
   if(P.deathT>0)return;
   P.deathT=1.1;hurtT=.6;sfx.hurt();
@@ -2002,6 +2017,7 @@ function update(dt){
   T+=dt;musicTick();updateMusic(dt);updateWeather(dt);
   if(flashT>0)flashT-=dt;
   if(hurtT>0)hurtT-=dt;
+  if(invulnT>0)invulnT-=dt;
   if(shakeT>0)shakeT-=dt;
   if(beamT>0)beamT-=dt;
   if(bossFlicker>0)bossFlicker-=dt;
@@ -2119,7 +2135,7 @@ function update(dt){
       }
     }
     if(Math.round(h.laneT)===P.lane&&Math.abs(h.laneT-P.lane)<.25&&
-       Math.abs(P.x-h.x)<24&&P.y>GY-40&&P.deathT<=0)die();
+       Math.abs(P.x-h.x)<24&&P.y>GY-40&&P.deathT<=0)hurtHit(h.x);
   }
 
   const ACC=760,AIR=600,FRI=780,MAX=208;
@@ -2263,7 +2279,7 @@ function update(dt){
     if(bug.x>bug.x2){bug.x=bug.x2;bug.dir=-1;}
     if(bug.x<bug.x1){bug.x=bug.x1;bug.dir=1;}
     const rr=26*bug.sc2*(bug.mode==='sleeper'&&bug.awake<=0?.7:1);
-    if(P.lane===0&&Math.abs(P.zlT)<.4&&Math.abs(P.x-bug.x)<rr&&P.y>bug.y-40&&P.deathT<=0)die();
+    if(P.lane===0&&Math.abs(P.zlT)<.4&&Math.abs(P.x-bug.x)<rr&&P.y>bug.y-40&&P.deathT<=0)hurtHit(bug.x);
   }
   // pushing on a closed shutter → point back to the shrine
   lessonGates.forEach((g,gi)=>{
@@ -4251,6 +4267,7 @@ function floorBelow(x,y){
 }
 function drawCluu(){
   if(P.deathT>.55)return;
+  if(invulnT>0&&((invulnT*14)|0)%2)return; /* hit-flash blink */
   const x=P.x,y=P.y;
   ctx.fillStyle='rgba(0,0,0,.55)';
   ctx.beginPath();ctx.ellipse(x,floorBelow(x,y),24*P.sx,6,0,0,7);ctx.fill();
