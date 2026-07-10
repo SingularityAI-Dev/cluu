@@ -123,8 +123,8 @@
     border:1px solid #2b3644;border-radius:9px;padding:8px 14px;backdrop-filter:blur(4px)}
   #cogs{top:16px;left:16px;color:var(--brassL)}
   #cards{top:16px;left:118px;color:var(--terra);display:none}
-  #lvls{top:16px;right:114px;display:flex;gap:10px;align-items:center;font-family:var(--serif)}
-  .lvl{font-size:13px;color:rgba(230,225,210,.35);transition:all .4s;letter-spacing:.05em}
+  #lvls{top:16px;right:114px;display:flex;gap:6px;align-items:center;font-family:var(--serif)}
+  .lvl{font-size:11.5px;color:rgba(230,225,210,.35);transition:all .4s;letter-spacing:.05em}
   .lvl.on{color:var(--brassL);text-shadow:0 0 10px rgba(232,192,106,.6)}
   #mute{top:16px;right:16px;pointer-events:auto;cursor:pointer;color:var(--dim);user-select:none}
   #mute:hover{color:var(--paper)}
@@ -274,7 +274,7 @@
 /* ============================== setup ============================== */
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-const VH = 540, GY = 460, LW = 22200;
+const VH = 540, GY = 460, LW = 44200;
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const TOUCHY  = matchMedia('(pointer: coarse)').matches;
 let dpr=1, s=1, viewW=960;
@@ -318,12 +318,12 @@ addEventListener('resize',resize); resize(); applySet();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
 /* painted wall plates (generated from the LN refs); vector wall stays as fallback until loaded */
 const PBASE=/\/arcade\//.test(location.pathname)?'plates/':'arcade/plates/';
-const plateImgs=['wall_l1','wall_sluice','wall_l2b','wall_l3b','wall_l5'].map(n=>{const i=new Image();i.decoding='async';i.src=PBASE+n+'.webp';return i;});
+const plateImgs=['wall_l1','wall_sluice','wall_l2b','wall_l3b','wall_l5','wall_l6','wall_l7','wall_l8','wall_l9','wall_l10'].map(n=>{const i=new Image();i.decoding='async';i.src=PBASE+n+'.webp';return i;});
 const crawlImg=new Image();crawlImg.decoding='async';crawlImg.src=PBASE+'wall_crawl.webp';
 /* painted boss sprites (chroma-keyed); vector bodies remain the fallback */
-const bossImgs=[1,2,3,4,5].map(n=>{const i=new Image();i.decoding='async';i.src=PBASE+'boss_'+n+'.webp';return i;});
-const BH=[330,340,360,320,300]; /* sprite heights in world px */
-const BEYE=[[[-.09,-.30],[.09,-.30]],[[-.07,-.36],[.07,-.36]],[[-.18,-.42]],[[0,-.12]],[[0,.18]]];
+const bossImgs=[1,2,3,4,5,6,7,8,9,10].map(n=>{const i=new Image();i.decoding='async';i.src=PBASE+'boss_'+n+'.webp';return i;});
+const BH=[330,340,360,320,300,330,335,300,365,375]; /* sprite heights in world px */
+const BEYE=[[[-.09,-.30],[.09,-.30]],[[-.07,-.36],[.07,-.36]],[[-.18,-.42]],[[0,-.12]],[[0,.18]],[[0,-.36]],[[-.045,-.33],[.05,-.33]],[[-.02,-.30]],[[-.06,-.38]],[[-.035,-.40],[.045,-.40]]];
 const pitImg=new Image();pitImg.decoding='async';pitImg.src=PBASE+'wall_pit.webp';
 {
   const t=document.getElementById('title');
@@ -547,7 +547,7 @@ function playLevelMusic(li){
   if(li===curTrack)return;curTrack=li;
   const t=musA;musA=musB;musB=t;
   musA._prime=false;musA.muted=false;
-  musA.src=li===-2?ABASE+'music_title.mp3':ABASE+'music_l'+([1,4,2,3,5][li])+'.mp3';
+  musA.src=li===-2?ABASE+'music_title.mp3':ABASE+'music_l'+([1,4,2,3,5,6,7,8,9,10][li])+'.mp3';
   musA.volume=0;musA.play().catch(()=>{});
 }
 /* title theme: try to start IMMEDIATELY; if the browser blocks autoplay,
@@ -649,13 +649,18 @@ if(TOUCHY){
 /* ============================== levels & palettes ============================== */
 /* levels grow as you progress: EXT[i] px inserted before each arena at init */
 const EXT=[400,700,1000,1300,1600];
-const LB=[0,3800,7900,12300,17000,LW];   // level boundaries (post-extension)
+const LB=[0,3800,7900,12300,17000,22200,26600,31000,35400,39800,LW];   // level boundaries (post-extension)
 const LNAMES=[
   ['LEVEL I','The Cold Boot Yards'],
   ['LEVEL II','The Undersluice'],
   ['LEVEL III','The Night Fair of Scrolls'],
   ['LEVEL IV','The Blueprint Woods'],
   ['LEVEL V','The Summit Boiler'],
+  ['LEVEL VI','The Glasshouse Terraces'],
+  ['LEVEL VII','The Proving Grounds'],
+  ['LEVEL VIII','The Rite Workshops'],
+  ['LEVEL IX','The Manufactory of Hands'],
+  ['LEVEL X','The Grand Library'],
 ];
 /* LN3 grade from measured reference pixels: high-chroma teal shadows (S~65%) on a lifted
    floor (luma ~15), cream lamp cores (amber lives in the glow ring, never the core) */
@@ -670,6 +675,16 @@ const PAL=[
   edge:'#3d4c3a',lamp:'#e8e4c0',fog:'#0e2426',darkA:.74,mist:'#173430'},
  {skyT:'#030607',skyB:'#0d2124',sil:'#030808',sil2:'#091211',soil:'#0a1414',plate:'#121c1c',
   edge:'#35443f',lamp:'#f2e0c2',fog:'#0d2124',darkA:.8,mist:'#142826'},
+ {skyT:'#051019',skyB:'#123039',sil:'#04121a',sil2:'#0b2026',soil:'#0c161c',plate:'#152631',
+  edge:'#44585a',lamp:'#f7efc9',fog:'#12303a',darkA:.7,mist:'#1d3d46'},
+ {skyT:'#04090d',skyB:'#0f2229',sil:'#030c10',sil2:'#0a181e',soil:'#0b1316',plate:'#142028',
+  edge:'#465043',lamp:'#f6ecc2',fog:'#102229',darkA:.75,mist:'#183038'},
+ {skyT:'#080705',skyB:'#1d1710',sil:'#0e0a06',sil2:'#1c150c',soil:'#120e08',plate:'#241c12',
+  edge:'#5a4c34',lamp:'#f8e9bd',fog:'#1d170f',darkA:.72,mist:'#33291a'},
+ {skyT:'#050809',skyB:'#0f1e22',sil:'#040c0e',sil2:'#0b191c',soil:'#0c1316',plate:'#152226',
+  edge:'#3f4d4c',lamp:'#f2e6c0',fog:'#0f1e24',darkA:.78,mist:'#163034'},
+ {skyT:'#060907',skyB:'#15251f',sil:'#070f0b',sil2:'#12201a',soil:'#0f1510',plate:'#1d2a20',
+  edge:'#52573f',lamp:'#f9efc6',fog:'#15251f',darkA:.68,mist:'#243b30'},
 ];
 function levelOf(x){for(let i=LB.length-2;i>=0;i--)if(x>=LB[i])return i;return 0;}
 function moodAt(x){
@@ -896,6 +911,11 @@ const BIOME=[
  {outdoor:true, lampStyle:'string',weather:'rain',  canopy:false},
  {outdoor:true, lampStyle:'paper', weather:'leaves',canopy:true},
  {outdoor:false,lampStyle:'caged', weather:'embers',canopy:false},
+ {outdoor:true, lampStyle:'paper', weather:'drip',  canopy:false},
+ {outdoor:true, lampStyle:'caged', weather:'rain',  canopy:false},
+ {outdoor:false,lampStyle:'paper', weather:'none',  canopy:false},
+ {outdoor:false,lampStyle:'caged', weather:'embers',canopy:false},
+ {outdoor:false,lampStyle:'paper', weather:'none',  canopy:false},
 ];
 /* blended biome weight at the camera centre (same 460px fade the palette uses) */
 let bwI=0,bwJ=0,bwT=0;
@@ -1203,8 +1223,63 @@ const LESSONS=[
         {t:'Delete the file that is erroring',hint:'The Bug does not live in one file. It lives in the cause.'},
         {t:'Wrap everything in try/catch so it stops screaming',hint:'Silencing a scream does not heal the wound.'}],
   success:'▸ lesson learned: debugging — somewhere above, something enormous flinches.'},
+ {path:'terminal@boilerworks:~/terraces',title:'The Ground Lens',
+  body:[
+   'Look — through the broken pane. Moonlight, ferns, night air. Even out here the craft is the same: <b>show</b> the companion what you mean.',
+   'Point at files with the <b>@</b> sigil. And paste screenshots straight into the terminal — <b>Claude sees images</b>: a broken layout, an error dialog, a chart.',
+   'When a long session grows heavy but you still need its thread, say <b>/compact</b> — the history folds small, and the work walks on.'],
+  code:'<span class="p">&gt;</span> [pastes screenshot] this button floats off-screen on mobile — why?',
+  q:'The layout is broken in a way words keep failing to capture.',
+  opts:[{t:'Paste a screenshot into Claude Code — it can see it',ok:true},
+        {t:'Describe it as “kind of floaty”',hint:'The lens exists. Use the lens.'},
+        {t:'Rewrite the CSS at random',hint:'Random is not a direction.'}],
+  success:'▸ lesson learned: showing — the glass remembers what words forget.'},
+ {path:'terminal@boilerworks:~/grounds',title:'The Proof Bench',
+  body:[
+   'This bench has weighed every claim the works ever made. Its rule is one word long: <b>prove</b>.',
+   'The strongest order of work: ask Claude to write a <b>failing test</b> that reproduces the bug FIRST. Then fix until it passes. Red, then green — that is the whole ceremony.',
+   'And when the companion says “done”, you say: <b>run the tests</b>. Watch them pass with your own eyes.'],
+  code:'<span class="p">&gt;</span> write a failing test for the crash, then fix until it passes',
+  q:'A bug report lands on the bench. The strongest first move?',
+  opts:[{t:'A failing test that reproduces it — then fix until green',ok:true},
+        {t:'Patch it quickly and hope',hint:'Hope is not a material. The Keeper told you so.'},
+        {t:'Blame the reporter',hint:'The bench weighs claims, not people.'}],
+  success:'▸ lesson learned: proof — red, then green, then trust.'},
+ {path:'terminal@boilerworks:~/workshops',title:'The Written Rite',
+  body:[
+   'Smell the wax? Every drawer here holds a rite: an instruction written <b>once</b>, performed forever.',
+   'Your repeated instructions belong in <b>.claude/commands</b> — each file becomes a slash command. Type <b>/review</b> and the whole ceremony runs.',
+   'Bigger crafts become <b>skills</b>: folders of instruction the companion picks up when the task calls for them. Write the rite once. Never recite it again.'],
+  code:'<span class="p">$</span> echo "review my diff for risky changes" &gt; .claude/commands/review.md\n<span class="p">&gt;</span> /review',
+  q:'You type the same long instruction every single morning.',
+  opts:[{t:'Make it a custom slash command — write it once',ok:true},
+        {t:'Keep typing it; tradition matters',hint:'Tradition is a rite WRITTEN, not repeated.'},
+        {t:'Stop giving the instruction',hint:'The instruction was good. Its repetition is the flaw.'}],
+  success:'▸ lesson learned: rites — written once, performed forever.'},
+ {path:'terminal@boilerworks:~/manufactory',title:'The Thousand Hands',
+  body:[
+   'All these benches. All these hands. The manufactory’s secret was never strength — it is <b>delegation</b>.',
+   'For huge research — survey every route, read every module — send a <b>subagent</b>: a second companion that explores and reports back while you keep building.',
+   'Independent chores may run in <b>parallel</b>. But when step two needs step one’s answer, they queue. Know which is which, and you command the floor.'],
+  code:'<span class="p">&gt;</span> use a subagent to map every API route, then report back',
+  q:'An enormous survey blocks your real work.',
+  opts:[{t:'Delegate it to a subagent and keep building meanwhile',ok:true},
+        {t:'Halt everything and read for a week',hint:'The floor does not stop for one reader.'},
+        {t:'Skip the survey',hint:'Unknown floors eat foremen.'}],
+  success:'▸ lesson learned: delegation — the whistle, not the wrench.'},
+ {path:'terminal@boilerworks:~/library',title:'The Keeper’s Shelf',
+  body:[
+   'This is where it was always going, keeper. Every warden, every terminal — they were teaching you to write <b>words worth keeping</b>.',
+   'When a prompt works — truly works — <b>save it</b>. Goal, context, constraints, and what “done” looks like: that is a tool, not a message.',
+   'Build your library. Carry it to every terminal you ever open. The game ends; the shelf is yours forever.'],
+  code:'<span class="p">&gt;</span> that prompt worked perfectly — saving it to my library',
+  q:'A prompt of yours just solved a whole class of problems.',
+  opts:[{t:'Shelve it: save the prompt as a reusable tool',ok:true},
+        {t:'Scroll on; there are more words where that came from',hint:'There are. But this one WORKED.'},
+        {t:'Frame it and never use it again',hint:'A tool behind glass is furniture.'}],
+  success:'▸ lesson learned: the library — your best words, kept.'},
 ];
-const lessonDone=[false,false,false,false,false];
+const lessonDone=[false,false,false,false,false,false,false,false,false,false];
 
 /* ============================== bosses ============================== */
 const BOSSES=[
@@ -1288,6 +1363,86 @@ const BOSSES=[
     opts:[{t:'Ask Claude to explain the root cause, so it cannot bite twice',ok:true},
           {t:'Never touch that file again as long as you live',hint:'Fear is the Bug’s favourite nest.'},
           {t:'Declare it a miracle and update your CV',hint:'Miracles regress. Understanding does not.'}]}]},
+ {name:'THE LENSGRINDER',title:'warden of the glasshouse terraces',
+  say:'“BLURRY. Everything you ask is BLURRY. Focus, little smudge, or be ground to frosted glass.”',
+  win:'The Lensgrinder lowers its cracked monocle and, for the first time, sees you clearly. It tips its head — almost a bow.',
+  qs:[
+   {q:'You need Claude to look at ONE file among thousands.',
+    opts:[{t:'Point with the @ sigil — “explain @works/boiler.js”',ok:true},
+          {t:'Describe the file’s general vibe and hope',hint:'Vibes are fog. The @ sigil is a lens.'},
+          {t:'Paste the entire codebase into the chat',hint:'You would hand it the haystack to prove there is a needle.'}]},
+   {q:'The page renders wrong, and words keep failing to describe how.',
+    opts:[{t:'Paste a screenshot — Claude can see images',ok:true},
+          {t:'Type “it looks weird, fix it”',hint:'Weird how? Show, do not shrug.'},
+          {t:'Read the CSS aloud to yourself, slowly',hint:'The companion has eyes. Use them.'}]},
+   {q:'The session is long. You still need the history, but the lamp grows dim.',
+    opts:[{t:'Use /compact — it folds the story small and carries on',ok:true},
+          {t:'Use /clear and lose the whole thread',hint:'Clear wipes the slate. You said you still NEED the thread.'},
+          {t:'Keep going and let it ramble',hint:'A dim lamp burns its oil twice as fast.'}]}]},
+ {name:'THE EXAMINER',title:'warden of the proving grounds',
+  say:'“Feelings are not RESULTS, candidate. Show your working — or be marked forever: FAILED.”',
+  win:'The Examiner stamps a single word across your page — PASSED — then rings its bell once, softly, like an apology.',
+  qs:[
+   {q:'A bug is reported. The strongest FIRST move?',
+    opts:[{t:'Ask for a failing test that reproduces it — then fix until it passes',ok:true},
+          {t:'Fix it fast and trust your gut',hint:'The gut is not admissible evidence.'},
+          {t:'Declare it a feature',hint:'The Examiner keeps a special drawer for that answer.'}]},
+   {q:'Claude announces the work is done. You…',
+    opts:[{t:'Run the tests and watch them pass yourself — proof, not vibes',ok:true},
+          {t:'Believe it — it sounded very confident',hint:'Confidence is a font choice. Proof is a test run.'},
+          {t:'Ship it, Friday evening',hint:'The Proving Grounds remember every Friday deploy.'}]},
+   {q:'The bug is dead. How do you keep it from rising again?',
+    opts:[{t:'Keep the test that caught it in the suite, forever',ok:true},
+          {t:'Delete the test — it passed, its work is done',hint:'You would dismantle the trap while the woods still have wolves.'},
+          {t:'Write the fix on a sticky note',hint:'Paper guards nothing. Suites guard.'}]}]},
+ {name:'THE RITEKEEPER',title:'warden of the rite workshops',
+  say:'“Improvise? IMPROVISE?! The works run on written rites. Show me yours — or repeat yourself unto dust.”',
+  win:'The Ritekeeper presses one warm wax seal to your sleeve: a little lamp, stamped in gold. You are now, officially, official.',
+  qs:[
+   {q:'Every day you type the same long review instruction. Again. And again.',
+    opts:[{t:'Save it once as a custom slash command in .claude/commands',ok:true},
+          {t:'Type it faster',hint:'Speed is not the problem. Repetition is.'},
+          {t:'Shorten it until it means nothing',hint:'A rite abbreviated to a shrug summons nothing.'}]},
+   {q:'What is a “skill”, in the companion’s tongue?',
+    opts:[{t:'A folder of instructions Claude picks up when the task calls for it',ok:true},
+          {t:'A trophy for finishing levels',hint:'Not a bauble. A written craft the machine can lift.'},
+          {t:'A plugin you must pay for',hint:'It is only files, keeper. Words in a folder.'}]},
+   {q:'You have corrected the companion the same way twice this week.',
+    opts:[{t:'Write the rule into CLAUDE.md so every session knows it',ok:true},
+          {t:'Correct it a third time, louder',hint:'The third telling teaches nothing the scroll could not.'},
+          {t:'Give up and do it by hand forever',hint:'The works were built so hands could rest.'}]}]},
+ {name:'THE FOREMAN',title:'warden of the manufactory of hands',
+  say:'“ONE pair of hands? I command a THOUSAND, and every one obeys the whistle. Show me you can lead more than yourself.”',
+  win:'The Foreman unhooks its brass whistle and presses it into your hands. A thousand small palms turn upward: waiting for you.',
+  qs:[
+   {q:'The survey is enormous: every route, every file, catalogued.',
+    opts:[{t:'Delegate it — send a subagent to research and report back',ok:true},
+          {t:'Read everything yourself, this decade',hint:'You have one lamp. The works have many hands.'},
+          {t:'Skip the survey and guess',hint:'Guessing is how the manufactory lost its first foreman.'}]},
+   {q:'Two chores, fully independent: rename here, audit there.',
+    opts:[{t:'Run them in parallel — neither waits on the other',ok:true},
+          {t:'Do them in strict order, to be polite',hint:'Politeness is for queues. Independent work may run together.'},
+          {t:'Do neither until inspired',hint:'The whistle does not blow for inspiration.'}]},
+   {q:'Step two needs step one’s answer. Still parallel?',
+    opts:[{t:'No — dependent steps run in order; parallel is for independent work',ok:true},
+          {t:'Yes — parallel everything, always',hint:'A thousand hands pulling one rope in both directions.'},
+          {t:'Flip a cog to decide',hint:'Dependency is not a coin toss. Look at what feeds what.'}]}]},
+ {name:'THE CURATOR',title:'keeper of the grand library',
+  say:'“Every wasted word ever spoken is shelved HERE. Show me one worth keeping, little keeper — or join the remainders.”',
+  win:'The Curator turns its lantern staff toward the stacks — and one small, warm shelf, empty until now, bears your name.',
+  qs:[
+   {q:'You wrote a prompt so good it solved a whole class of problems.',
+    opts:[{t:'Save it — a library of your best prompts is a toolbox forever',ok:true},
+          {t:'Let it scroll away into history',hint:'The Library was built by keepers who did not let go.'},
+          {t:'Memorise it and hope',hint:'Memory is a lamp in rain. Write it down.'}]},
+   {q:'What makes a prompt worth shelving?',
+    opts:[{t:'It states the goal, the context, the constraints, and what “done” looks like',ok:true},
+          {t:'It is very, very long',hint:'Length is not worth. A shelf of padding is still padding.'},
+          {t:'It says “please” twice',hint:'Manners are free. Clarity is valuable.'}]},
+   {q:'A new, unknown codebase. Everything you have learned — where do you begin?',
+    opts:[{t:'Explore first, ask questions, plan — then small, verified steps',ok:true},
+          {t:'Rewrite it from scratch, immediately',hint:'The first warden told you how boilers burst.'},
+          {t:'Deploy something and see what happens',hint:'Ten wardens, and you would still feed the Bug?'}]}]},
 ];
 const bossState=ARENA.map((a,i)=>({i,hp:3,php:3,phase:0,state:'wait',t:0,x:a.cx+180,dead:false,hitT:0,lungeT:0,riseT:1,tiltT:0}));
 // state: wait | intro | duel | dying | dead
@@ -1309,7 +1464,22 @@ const REACTS=[
   '“Final commit message: the lamp… stays lit—”'],
  ['“ERROR: keeper not afraid. Retrying— RETRYING—”',
   '“You READ me. No one reads me. Trace… shortening—”',
-  '“Test… passing. I was only ever… a bug—”']];
+  '“Test… passing. I was only ever… a bug—”'],
+ ['“KRRK— a crack in the good lens. You are… sharper than you look.”',
+  '“All my little mirrors… showing me MYSELF. Stop it. STOP FOCUSING.”',
+  '“Ah. At last. Everything… perfectly… clear—”'],
+ ['“DING. Correct. Do not let it go to your head, candidate.”',
+  '“My tallies— my beautiful tallies do not add up—”',
+  '“Final mark: pass. Distinction. Now leave, before I re-grade—”'],
+ ['“A seal has POPPED. Do you know the paperwork that causes?!”',
+  '“My ribbons unravel— who taught you the old rites?!”',
+  '“Rite… complete. Stamp it. STAMP IT, and let me sleep—”'],
+ ['“One hand down. I have nine hundred and ninety-nine more.”',
+  '“The little hands— they are LISTENING to you now—”',
+  '“Whistle… fading. Take the shift, keeper. It was always… yours—”'],
+ ['“Shelved under W, for WOUNDED.”',
+  '“You would teach ME about keeping words? …Noted. Filed. Feared.”',
+  '“Then take the key, keeper. The Library was only ever… waiting for you—”']];
 /* typewriter for the duel sheet's boss line (#dsay) */
 const sayTyper={el:null,full:'',i:0,acc:0};
 function typeSay(txt){
@@ -1374,7 +1544,7 @@ for(let i=0;i<110;i++)motes.push({x:rnd()*LW,y:120+rnd()*330,ph:rnd()*6.28,sp:.1
 /* ============================== HUD ============================== */
 const $=id=>document.getElementById(id);
 const lvlsEl=$('lvls');
-['I','II','III','IV','V'].forEach(n=>{const d=document.createElement('span');d.className='lvl';d.textContent=n;lvlsEl.appendChild(d);});
+['I','II','III','IV','V','VI','VII','VIII','IX','X'].forEach(n=>{const d=document.createElement('span');d.className='lvl';d.textContent=n;lvlsEl.appendChild(d);});
 function updHUD(){
   $('cogs').innerHTML='&#9881; '+cogsGot+(mothsGot>0?' &nbsp;<span style="color:#e8c06a">&#129419;'.replace('&#129419;','\u2739')+' '+mothsGot+'</span>':'');
   $('cogs').style.borderColor=cogsGot>=25?'#c9973f':'#2b3644';
@@ -1802,6 +1972,11 @@ const TRAVEL=[
  ['A rusted ladder. A grate pushed open. Night air.','The lights of the Night Fair glitter through the rain.'],
  ['Past the last stall the cobbles turn to roots.','The Blueprint Woods close overhead.'],
  ['Through the trees, the works rise black against the sky.','The Summit Boiler. Something enormous is waiting.'],
+ ['Behind the dead boiler, a door of fogged glass swings loose.','Moonlight. Ferns. The Glasshouse Terraces breathe.'],
+ ['Rain begins where the glass ends.','Chalk lines and gantries — the Proving Grounds.'],
+ ['A low door, sealed with a hundred stamps, stands ajar.','Candlelight inside: the Rite Workshops.'],
+ ['Past the last bench, the ceiling climbs out of sight.','A thousand still hands: the Manufactory.'],
+ ['At the manufactory’s end, two doors of oak and brass.','Every word ever kept: the Grand Library.'],
 ];
 let travel={on:false,t:0,li:0};
 function startTravel(li){travel.on=true;travel.t=0;travel.li=li;state='cine';letterbox(true);sfx.reveal();playBuf(buf.whoosh,.7);}
@@ -1955,7 +2130,7 @@ function bossDefeated(bs){
     toast('✔ committed: "'+LNAMES[bs.i][1].toLowerCase()+' — cleared"','warden broken · the way is open');
     sfx.commit();
     activeBoss=null;
-    if(bs.i===4){letterbox(false);state='play';setTimeout(finishGame,3200);}
+    if(bs.i===9){letterbox(false);state='play';setTimeout(finishGame,3200);}
     else startTravel(bs.i+1); /* through the passage, into the next world */
   },2600);
 }
@@ -2007,7 +2182,7 @@ function die(){
 }
 function finishGame(){
   state='end';
-  $('endstat').textContent='⚙ '+cogsGot+' cogs · \u2739 '+mothsGot+'/5 brass moths · 5 wardens passed · the Engine turns again';
+  $('endstat').textContent='⚙ '+cogsGot+' cogs · \u2739 '+mothsGot+'/8 brass moths · 10 wardens passed · the Engine turns again';
   $('ending').classList.add('show');
 }
 
@@ -2932,6 +3107,116 @@ function drawFloorScraps(x1,x2,m){
     if(ec)ec.x=gs+110;
   }
   seed=s0;
+})();
+/* ============================== levels VI–X (authored post-extension, final coords) ============================== */
+(function buildLevels6to10(){
+  /* geometry */
+  ground(22200,1350);plat(23610,352,120);ground(23820,900);
+  mover(24800,352,110,54,1.25,0);ground(25050,1550);
+  ground(26600,1000);plat(27680,352,115);ground(27900,1100);
+  mover(29080,340,110,58,1.3,1);ground(29350,1650);
+  ground(31000,1250);plat(32330,352,110);plat(32530,258,100);ground(32750,950);
+  plat(33780,352,115);ground(34000,1400);
+  ground(35400,1100);mover(36580,352,115,60,1.4,2);ground(36850,1000);
+  plat(37930,352,110);ground(38150,1650);
+  ground(39800,1500);plat(41380,352,120);plat(41580,258,105);ground(41800,1000);
+  plat(42860,352,115);ground(42980,1220);
+  /* arenas + gates + wardens */
+  const NA=[
+   {trig:25700,cx:26020,gx:26320},
+   {trig:30100,cx:30420,gx:30720},
+   {trig:34500,cx:34820,gx:35120},
+   {trig:38900,cx:39220,gx:39520},
+   {trig:43300,cx:43620,gx:43920},
+  ];
+  NA.forEach((a,k)=>{
+    ARENA.push(a);
+    const g={x:a.gx,w:56,h:260,openT:0,opening:false};
+    gates.push(g);allGates.push(g);
+    const lg={x:a.trig-220,w:36,h:260,openT:0,opening:false};
+    lessonGates.push(lg);allGates.push(lg);
+    shrines.push({x:a.trig-320,li:5+k});
+    bossState.push({i:5+k,hp:3,php:3,phase:0,state:'wait',t:0,x:a.cx+180,dead:false,hitT:0,lungeT:0,riseT:1,tiltT:0});
+  });
+  /* checkpoints */
+  flags.push(
+   {x:22280,msg:'step into the glasshouse terraces',done:false},
+   {x:25100,msg:'the last pane before the lens',done:false},
+   {x:26680,msg:'enter the proving grounds',done:false},
+   {x:29400,msg:'the examiner expects you',done:false},
+   {x:31080,msg:'slip into the rite workshops',done:false},
+   {x:34050,msg:'wax underfoot — the ritekeeper stirs',done:false},
+   {x:35480,msg:'walk the manufactory of hands',done:false},
+   {x:38200,msg:'the foreman’s whistle glints',done:false},
+   {x:39880,msg:'enter the grand library',done:false},
+   {x:43030,msg:'one empty shelf remains',done:false});
+  /* teaching signs — every warden question is taught before its arena */
+  signs.push(
+   {x:22600,t:'The glass drips but holds. Broken panes above — mind the falling beads.'},
+   {x:23300,t:'Keeper’s tip: the companion has eyes. Paste a screenshot — a broken page, an error box — and it will look.'},
+   {x:24450,t:'Point, do not gesture: the @ sigil names the exact file. Precision, keeper, always precision.'},
+   {x:25150,t:'Keeper’s tip: /compact folds a long session small and keeps the thread. /clear cuts it. Choose knowingly.'},
+   {x:26950,t:'The Proving Grounds test all comers. Rain slicks the gantries — long jumps want a running start.'},
+   {x:28300,t:'Keeper’s tip: “done” is a claim. Tests passing is a fact. Ask for the run, and watch it pass.'},
+   {x:29600,t:'Keeper’s tip: when a bug dies, keep the test that killed it. Traps stay set.'},
+   {x:31400,t:'Wax and ribbon everywhere. The shutters here open to written rites alone.'},
+   {x:32900,t:'Keeper’s tip: a skill is only a folder of instructions the companion lifts when the task calls. Words, not wares.'},
+   {x:33950,t:'Keeper’s tip: corrected the companion twice? Write the rule in CLAUDE.md and never say it thrice.'},
+   {x:35800,t:'The benches sleep. A thousand hands, waiting for a keeper who knows the whistle.'},
+   {x:37100,t:'Keeper’s tip: independent chores run side by side. Dependent ones queue. Look at what feeds what.'},
+   {x:38450,t:'Keeper’s tip: too big to read alone? Send a subagent to survey and report back. You keep building.'},
+   {x:40200,t:'The Grand Library. Every shelf, a keeper who kept their words. One shelf is empty. Not for long.'},
+   {x:41950,t:'Keeper’s tip: a prompt worth keeping states goal, context, constraints, and what done looks like.'},
+   {x:42750,t:'Ten wardens, one craft: explore, question, plan, verify — then keep the words that worked.'});
+  /* keeper's echoes (vo_11..vo_20) */
+  ECHOES.push(
+   {x:23050,vo:11,done:false,t:"Out here the glass teaches the lesson, little one. Show, do not describe. Paste the picture of the wound, point the @ sigil at the file, and the companion’s eyes do the rest."},
+   {x:25350,vo:12,done:false,t:"A long tale need not be abandoned. Say compact, and the history folds itself small, like a map refolded, and the journey walks on with its thread intact."},
+   {x:27350,vo:13,done:false,t:"On these grounds we trusted no claim, keeper. First the failing test, red as a wound. Then the fix, until it passes green. Red, then green. That is the whole ceremony of truth."},
+   {x:29850,vo:14,done:false,t:"When you kill a bug, do not bury the trap with it. Keep the test in the suite forever, and the same wolf never crosses that gate twice."},
+   {x:31850,vo:15,done:false,t:"The wax remembers what the tongue tires of saying. Write the repeated instruction once, as a command, and afterwards a single word performs the whole rite."},
+   {x:34300,vo:16,done:false,t:"A skill is a humble thing, keeper. A folder of written craft. The companion lifts it when the task calls, and sets it down after. Teach it once, and it is taught forever."},
+   {x:36200,vo:17,done:false,t:"No keeper carried the manufactory alone. For the vast surveys, send a second companion, a subagent, to walk the far aisles and return with a map. You need not stop building."},
+   {x:38700,vo:18,done:false,t:"Hear the rhythm of the floor. What is independent may run together. What depends must wait its turn. Command that rhythm, and a thousand hands are yours."},
+   {x:40700,vo:19,done:false,t:"Here is the secret at the bottom of all of it, little keeper. The prompts that worked, the words that truly moved the machine, those are tools. Shelve them. A library of your best words outlasts every game ever played."},
+   {x:42400,vo:20,done:false,t:"Beyond that door waits the last warden, and beyond the warden, the world. Take the craft with you. Explore, question, plan, verify, and keep what works. The Engine was never in the works, keeper. It was always in the asking."});
+  /* scrap-mites */
+  const nb=[
+   [22900,23250,80,'patrol',1],[24050,24500,92,'skitter',.8],
+   [27150,27500,90,'sleeper',1.3],[28500,28900,100,'stalker',1.1],
+   [31600,31950,84,'sleeper',1.4],[33150,33550,104,'stalker',1.05],
+   [36000,36400,96,'skitter',.78],[37300,37700,112,'stalker',1.15],
+   [40400,40800,100,'patrol',1],[42100,42500,118,'skitter',.85]];
+  for(const [x1,x2,spd,mode,sc2] of nb)
+    bugs.push({x1,x2,y:GY,spd,x:x1+40,dir:1,mode,sc2,tmr:0,burst:false,awake:0,tell:0});
+  /* cogs */
+  cogRow(22500,408,4,46);cogRow(23660,302,3,40);cogRow(24080,408,3,44);cog(24855,300);cogRow(25500,408,4,46);
+  cogRow(26900,408,3,44);cog(27737,300);cogRow(28200,408,4,46);cog(29135,288);cogRow(29900,408,4,48);
+  cogRow(31300,408,4,46);cog(32385,300);cog(32580,206);cogRow(33000,408,3,44);cog(33837,300);cogRow(34400,408,4,46);
+  cogRow(35700,408,4,46);cog(36637,300);cogRow(37000,408,3,44);cog(37985,300);cogRow(38350,408,4,48);
+  cogRow(40100,408,4,46);cog(41440,300);cog(41632,206);cogRow(42000,408,3,44);cog(42917,300);cogRow(43050,408,3,46);
+  /* brass moths (permanent hearts, cap 6 applies) */
+  MOTHS.push(
+   {x:23665,y:300,lane:0,zx1:23640,zx2:23740,skit:false,ph:1.3,fx:23665,got:false,dartT:0},
+   {x:32580,y:206,lane:0,zx1:32555,zx2:32655,skit:false,ph:2.6,fx:32580,got:false,dartT:0},
+   {x:41632,y:206,lane:0,zx1:41605,zx2:41705,skit:false,ph:4.2,fx:41632,got:false,dartT:0});
+  /* light + dressing */
+  for(let lx=22480;lx<44060;lx+=440)lamps.push({x:lx,y:268,r:230,warm:1,
+    onFloor:plats.some(p=>p.ground&&lx>=p.x&&lx<=p.x+p.w)});
+  shafts.push({x:23200,w:120},{x:28200,w:110},{x:31900,w:120},{x:36900,w:100},{x:40900,w:130});
+  vents.push(23800,27250,32550,36320,38500,41520);
+  [[22700,1],[24300,.9],[27000,1.05],[29500,.95],[31500,1],[33300,1.1],[35900,.9],[37500,1],[40300,1.05],[42200,.95]]
+    .forEach(([x,sc],i)=>{
+      const t={x,sc,kind:['drawer','mann','spool','crate'][i%4]};
+      let best=1e9,dir=1;
+      for(const lp of lamps){const d=Math.abs(lp.x-t.x);if(d<best){best=d;dir=lp.x>t.x?1:-1;}}
+      t.ldir=dir;t.lnear=clamp(1-best/520,0,1);
+      tanks.push(t);
+    });
+  SET.bulbs.push(25200,34100,42900);
+  SET.rugs.push(23900,36700);
+  SET.crates.push([24500,1],[30700,.9],[33500,1.1],[38300,1],[41700,.95]);
+  SET.scraps.push([22600,23100],[27900,28500],[31300,31900],[35700,36400],[40100,40800]);
 })();
 /* ============================== keeper's echo playback ============================== */
 const voEl=new Audio();voEl.preload='none';
@@ -4280,6 +4565,11 @@ const BUDDYS=[
  {name:'GHOST',    flavor:'CHAOS 77 \u00b7 WISDOM 64',    tint:'#cfd8dc'},
  {name:'OWL',      flavor:'WISDOM 96 \u00b7 PATIENCE 71', tint:'#b08a5a'},
  {name:'DRAGON',   flavor:'CHAOS 92 \u00b7 DEBUGGING 83', tint:'#7fae8a'},
+ {name:'CAT',      flavor:'SNARK 88 \u00b7 PATIENCE 42',  tint:'#c9a15a'},
+ {name:'FOX',      flavor:'CHAOS 68 \u00b7 DEBUGGING 71', tint:'#d98e4a'},
+ {name:'CRAB',     flavor:'PATIENCE 93 \u00b7 SNARK 57',  tint:'#d96459'},
+ {name:'PENGUIN',  flavor:'WISDOM 74 \u00b7 PATIENCE 80', tint:'#8fa3b8'},
+ {name:'PHOENIX',  flavor:'CHAOS 99 \u00b7 WISDOM 88',    tint:'#e8a03a'},
 ];
 function drawBuddyBits(li,lean){
   /* small species features, drawn between body and helmet */
@@ -4307,11 +4597,44 @@ function drawBuddyBits(li,lean){
     ctx.fillStyle='#b08a5a';
     ctx.beginPath();ctx.moveTo(-10,-31);ctx.lineTo(-5,-28);ctx.lineTo(-11,-26);ctx.closePath();ctx.fill();
     ctx.beginPath();ctx.moveTo(14,-31);ctx.lineTo(9,-28);ctx.lineTo(15,-26);ctx.closePath();ctx.fill();
-  }else{ /* dragon: horns + tail spike */
+  }else if(li===4){ /* dragon: horns + tail spike */
     ctx.fillStyle='#7fae8a';
     ctx.beginPath();ctx.moveTo(-9,-31);ctx.lineTo(-7,-38);ctx.lineTo(-4,-31);ctx.closePath();ctx.fill();
     ctx.beginPath();ctx.moveTo(10,-31);ctx.lineTo(12,-38);ctx.lineTo(15,-31);ctx.closePath();ctx.fill();
     ctx.beginPath();ctx.moveTo(-14,-14);ctx.lineTo(-20,-11);ctx.lineTo(-14,-9);ctx.closePath();ctx.fill();
+  }else if(li===5){ /* cat: pricked ears + whisker dots */
+    ctx.fillStyle='#c9a15a';
+    ctx.beginPath();ctx.moveTo(-11,-31);ctx.lineTo(-8,-39);ctx.lineTo(-4,-31);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(5,-31);ctx.lineTo(9,-39);ctx.lineTo(12,-31);ctx.closePath();ctx.fill();
+    ctx.fillStyle='rgba(255,240,214,.5)';
+    ctx.fillRect(-13+lean,-18,2,1.4);ctx.fillRect(12+lean,-18,2,1.4);
+  }else if(li===6){ /* fox: wide ears + swishing tail */
+    ctx.fillStyle='#d98e4a';
+    ctx.beginPath();ctx.moveTo(-13,-30);ctx.lineTo(-9,-41);ctx.lineTo(-3,-31);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(4,-31);ctx.lineTo(10,-41);ctx.lineTo(14,-30);ctx.closePath();ctx.fill();
+    const tw=Math.sin(T*3.1)*3;
+    ctx.strokeStyle='#d98e4a';ctx.lineWidth=4;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(-14,-11);ctx.quadraticCurveTo(-22,-14+tw,-24,-19+tw);ctx.stroke();
+    ctx.strokeStyle='#f2e6c0';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(-23,-17.5+tw);ctx.lineTo(-24,-19+tw);ctx.stroke();ctx.lineCap='butt';
+  }else if(li===7){ /* crab: little side claws */
+    ctx.fillStyle='#d96459';
+    for(const s2 of [-1,1]){
+      ctx.beginPath();ctx.arc(s2*17,-20,3.4,0,7);ctx.fill();
+      ctx.beginPath();ctx.moveTo(s2*17,-24);ctx.lineTo(s2*20,-26);ctx.lineTo(s2*17.5,-22);ctx.closePath();ctx.fill();
+    }
+  }else if(li===8){ /* penguin: cream belly + tiny beak */
+    ctx.fillStyle='rgba(242,230,192,.55)';
+    roundRect(-8,-24,16,14,4);ctx.fill();
+    ctx.fillStyle='#e8a03a';
+    ctx.beginPath();ctx.moveTo(-1+lean,-21);ctx.lineTo(3.5+lean,-19.6);ctx.lineTo(-1+lean,-18.2);ctx.closePath();ctx.fill();
+  }else if(li===9){ /* phoenix: guttering flame crest */
+    const fl=Math.sin(T*9)*1.6,f2=Math.sin(T*7+2)*1.3;
+    ctx.fillStyle='#e8a03a';
+    ctx.beginPath();ctx.moveTo(-6,-32);ctx.quadraticCurveTo(-4,-41-fl,0,-33);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(1,-32);ctx.quadraticCurveTo(4,-39-f2,7,-32);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#fdf6d8';
+    ctx.beginPath();ctx.moveTo(-3,-32);ctx.quadraticCurveTo(-1,-37-fl*.6,1,-32);ctx.closePath();ctx.fill();
   }
 }
 function drawCluu(){
@@ -4344,7 +4667,7 @@ function drawCluu(){
   ctx.beginPath();ctx.moveTo(-12,-24);ctx.lineTo(-15+step*.8,-13);ctx.stroke();
   ctx.fillStyle='#4a2418';ctx.beginPath();ctx.arc(-15+step*.8,-12.4,1.7,0,7);ctx.fill();
   /* pixel-Claude slab body: blocky, terracotta, tinted faintly by the level's buddy */
-  const bli=clamp(levelOf(P.x),0,4);
+  const bli=clamp(levelOf(P.x),0,9);
   const bg=ctx.createLinearGradient(0,-32,0,-8);
   bg.addColorStop(0,mix('#d97757',BUDDYS[bli].tint,.14));
   bg.addColorStop(.5,'#c96a4c');bg.addColorStop(1,'#8a4630');
