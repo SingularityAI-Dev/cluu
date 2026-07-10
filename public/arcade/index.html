@@ -483,6 +483,7 @@ let musA=musEls[0],musB=musEls[1],curTrack=-1,musVol=.55,duck=1;
 function playLevelMusic(li){
   if(li===curTrack)return;curTrack=li;
   const t=musA;musA=musB;musB=t;
+  musA._prime=false;musA.muted=false;
   musA.src=li===-2?ABASE+'music_title.mp3':ABASE+'music_l'+([1,4,2,3,5][li])+'.mp3';
   musA.volume=0;musA.play().catch(()=>{});
 }
@@ -521,7 +522,10 @@ addEventListener('visibilitychange',()=>{if(!document.hidden)tryTitleMusic();});
 }
 function updateMusic(dt){
   const target=musicOn?musVol*duck:0;
-  if(musA.src)musA.volume=Math.min(target,musA.volume+dt*.35);
+  if(musA.src){
+    musA.volume=Math.min(target,musA.volume+dt*.35);
+    if(musA.paused&&!musA._prime&&target>0&&curTrack!==-1)musA.play().catch(()=>{});
+  }
   if(musB.src){musB.volume=Math.max(0,musB.volume-dt*.35);
     if(musB.volume===0&&!musB.paused)musB.pause();}
 }
@@ -687,7 +691,7 @@ const flags=[
 ];
 const signs=[
  {x:320, t:'← → or A D to run. Space to jump — hold it to rise higher on the steam.'},
- {x:900, t:'Brass cogs are the coin of the works. The terminals trade knowledge for them.'},
+ {x:900, t:'Brass cogs are the works\u2019 own armor. Carry 25, and in a warden\u2019s duel they will shatter to take a blow meant for you.'},
  {x:1420,t:'Mind the gap, little engine. A running start, and hold that jump.'},
  {x:2350,t:'A warden holds each gate. Wardens test what the terminals teach — answer well, and they yield.'},
  {x:3650,t:'The Archive remembers everything… it just cannot remember where it put it. Punch-cards mend its mind.'},
@@ -1889,14 +1893,14 @@ function bossDefeated(bs){
 /* ============================== flow ============================== */
 function startGame(){
   initAudio();
-  if(curTrack===-2){ /* title theme already running: prime only the idle element */
-    musB.src=ABASE+'music_l1.mp3';musB.muted=true;
-    musB.play().then(()=>{musB.pause();musB.muted=false;}).catch(()=>{musB.muted=false;});
-  }else{
-    musEls.forEach(el=>{el.src=ABASE+'music_l1.mp3';el.muted=true;
-      el.play().then(()=>{el.pause();el.muted=false;}).catch(()=>{el.muted=false;});});
-  }
-  setTimeout(()=>playLevelMusic(0),80);
+  const prime=el=>{
+    el._prime=true;el.src=ABASE+'music_l1.mp3';el.muted=true;
+    el.play().then(()=>{if(el._prime){el.pause();}el.muted=false;})
+      .catch(()=>{el.muted=false;});
+  };
+  if(curTrack===-2)prime(musB); /* title theme keeps playing on musA */
+  else musEls.forEach(prime);
+  setTimeout(()=>playLevelMusic(0),120);
   $('title').classList.remove('show');
   $('hud').classList.add('show');
   state='cine';letterbox(true);
@@ -2140,6 +2144,8 @@ function update(dt){
   for(const c of cogs){
     if(!c.got&&c.lane===P.lane&&Math.abs(P.x-c.x)<26&&Math.abs(P.y-17-c.y)<42){
       c.got=true;cogsGot++;updHUD();sfx.cog();
+      if(cogsGot===25&&!window.__armorHinted){window.__armorHinted=true;
+        toast('\u2699 25 cogs hum around you','they will absorb one wrong answer in a duel \u00b7 spend them well');}
       for(let i=0;i<7;i++)spawnSpark(c.x,c.y,'#e8c06a');}}
   for(const mo of MOTHS){
     if(mo.got)continue;
@@ -4311,6 +4317,7 @@ window.__cluu={warp(x){P.x=x;P.y=GY-2;P.vx=0;P.vy=0;respawn={x,y:GY};cam.x=clamp
       gu:z?groundUnder(BPL[P.lane+1]||[],P.x,P.y):false,lane:P.lane};},
   cards(){cardsGot=3;updHUD();},
   travel(i){startTravel(i);},
+  get mus(){return {src:(musA.src||'').split('/').pop(),paused:musA.paused,vol:+musA.volume.toFixed(2),ct:+musA.currentTime.toFixed(1)};},
   clear(i){bossState[i].dead=true;bossState[i].state='dead';gates[i].openT=1;
     lessonGates[i].openT=1;lessonDone[i]=true;updHUD();}};
 })();
