@@ -3,16 +3,16 @@
 > Updated: 2026-07-10
 
 ## Where we are
-The arcade game is now a Little Nightmares-grade 2.5D diorama, rebuilt over three days of user-directed passes: measured teal palette and lighting from the actual LN3 reference frames, Gemini-generated painted backdrops per biome, redesigned found-object Cluu, puppet enemies with behavior variants, real secondary planes (under-floor pits, wall crawl-spaces), a biome journey (Boot Yards > Undersluice > Night Fair > Blueprint Woods > Summit Boiler) with post-boss destruction cinematics and travel transitions, and a full sampled soundtrack (per-level music, footsteps, duel impacts, UI sfx). Live public at cluu.vercel.app.
+The arcade game is feature-rich and live at cluu.vercel.app: LN-grade painted world across five distinct biomes, painted puppet bosses with fully dramatized duels and destruction cinematics, secondary planes (pits, crawl-spaces), a collectible economy (cog armor, rare brass moths), a complete sampled soundtrack with per-level music and title theme, and Keeper's Echoes: voiced monologues (local Kokoro TTS) at gramophones that teach real Claude Code practice. Levels lengthen progressively via init-time world extension.
 
 ## Recent
-- Audio complete: biome-mapped level music with crossfades, boss/level stingers, stride-synced footsteps, duel hit/miss impacts, interaction sounds
-- Boss flow is cinematic end to end: entry hit + drifting tilted camera, collapse with riser and thud, iris wipe through the passage, captioned travel pan into the next biome
-- Painted-asset pipeline established: Gemini 2.5 Flash Image (user-funded prepay key in .env.local) generates LN-grade plates; ffmpeg converts curated wavs from assets/audio/
+- Keeper's Echoes shipped: 10 voiced teachings, letterboxed cine, subtitles, music ducking; TTS pipeline is local (kokoro-onnx + models in assets/tts/, aged-voice ffmpeg chain)
+- World extension: 400-1600px inserted before each arena at init; all authored coordinates shift via extendWorld; new stretches filled with content
+- Audio matured: synth engine deleted, everything sample-based; user actively curates (voiced jump huffs tried and reverted same day)
 
 ## Next
-- Sloped walk-line refactor (user wants 30-degree inclines, e.g. descending the Undersluice): terraced ground pieces + step-up assist + per-piece floor y through renderer, pools, props, pits. Dedicated pass; touches every GY-anchored system
-- Wire encounters to /api/encounter/attempt for live GLM-5.2 prompt grading (the Library thesis, still the product core)
-- Pit/crawl ambience swap (Creepy cave ambience.wav is converted-ready in assets/audio)
-- Mite behavior tuning after user playtests; revisit "Anthropic only in v1" grading lock before launch
-- assets/refs/ and assets/audio/ are untracked local source libraries (900MB); keep out of git
+- Sloped walk-line refactor (30-degree inclines) still promised; touches every GY-anchored system, needs a dedicated pass
+- Wire encounters to /api/encounter/attempt for live prompt grading (Library thesis, still the product core)
+- Chatterbox voice-clone swap for the Keeper if the Kokoro timbre wears thin
+- Pit/crawl ambience swap (Haunted_Places whispers track is a ready candidate)
+- assets/{refs,audio,tts} are untracked local libraries (~1.2GB); keep out of git

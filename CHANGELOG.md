@@ -2,6 +2,12 @@
 
 > Last 20 changes. Full history in git.
 
+- 2026-07-10: jump sfx reverted to whoosh+step on user call (voiced huffs pulled same day)
+- 2026-07-10: Keeper's Echoes: 10 gramophones with Kokoro-TTS voiced monologues (aged bm_george) + subtitles + skippable cine; levels lengthened progressively (extendWorld, +400..1600px); synth-era audio fully removed; boss death v2 (topple + moth dissolve, dead never redraws); movement slowed again (MAX 208)
+- 2026-07-10: title screen theme (Whispers Of Mystery) with instant-autoplay attempt + gesture fallback; UI hover/click sfx game-wide
+- 2026-07-10: collectible economy: music-box cog chimes with streak pitch, 25-cog duel armor, 5 skittish brass moths granting permanent duel hearts; fixed floor cogs being uncollectable on foot
+- 2026-07-10: biome atmospheres: rain + wet floor + festoon lights (fair), canopy + leaves + paper lanterns (woods), ceiling drips (sluice); outdoor plates read as deep sky
+- 2026-07-10: five Gemini-painted puppet bosses (chroma-keyed sprites), dramatized duels (rise, typewriter taunts, light-lash, damage states, kill slow-mo)
 - 2026-07-10: duel impact sfx (wire hits/scrapes), boss-death riser + thud, UI interaction sounds (terminal chatter/confirm/glitch), plane-transition whooshes
 - 2026-07-10: mite variants (sizes + patrol/skitter/sleeper/stalker modes), boss defeat is now a collapse cinematic with iris wipe into the next biome, new Undersluice sewer level (biome route: yards > sluice > fair > woods > summit)
 - 2026-07-09: sampled audio: unique looping music per level mapped to biome, boss/level piano stingers, stride-synced footsteps; synth music retired
@@ -16,9 +22,3 @@
 - 2026-07-08: NVIDIA NIM grading adapter (z-ai/glm-5.2) with local fallback; verified live on production
 - 2026-07-08: standalone CLUU arcade game added and deployed public on Vercel
 - Design tokens module `lib/design/tokens.ts`: 14 palette tokens, semantic spacing (`tile=32`, `cluu=48`), radii, `hexToInt()` Phaser helper (01.1-01)
-- Encounter-object authoring spec `docs/encounter-object-authoring.md`: canvas sizes, palette-token discipline, Aseprite export checklist, Sunflower worked example (01.1-02)
-- Phase 01.1 plans: 5 plans across 3 waves for visual style + Cluu feel
-- `SettingsMenu` mounted on landing + `AuthAwareShell` wraps `GameClient` (01-07)
-- `useMigrateOnSignIn` client trigger for anon-to-authed migration (AUTH-03)
-- Cluu 4-layer Container with seek-follow behavior (CLUU-01, D-11/D-13/D-14)
-- `PlayerAnchor` + `InputSystem` + camera lerp follow (WORLD-02/03/04)
