@@ -68,5 +68,5 @@ Next.js 16 (App Router) hosts a self-contained HTML5 canvas game at the root rou
 ---
 
 <div align="center">
-Built by Single Source Studios.
+Built by <a href="https://singlesource.co.za">SingleSource AI</a>.
 </div>
