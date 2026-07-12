@@ -42,3 +42,15 @@ build/
 # local runtime state
 .hermes/
 supabase/
+
+# build process docs (not shipped)
+.planning/
+docs/
+CLAUDE.md
+STATUS.md
+CHANGELOG.md
+
+# untracked local asset libraries (~1.2GB, never commit)
+assets/refs/
+assets/audio/
+assets/tts/
